@@ -1,0 +1,19 @@
+version: '3'
+services:
+  elasticsearch:
+    image: elasticsearch:7.4.0
+    container_name: tool-elastic
+    ports:
+        - 9200:9200
+    environment:
+        - cluster.name=tool-elastic-cluster
+        - bootstrap.memory_lock=true
+        - "ES_JAVA_OPTS=-Xms1g -Xmx1g"
+        - discovery.type=single-node
+  arangodb:
+    image: arangodb:3.5.1
+    container_name: tool-arango
+    ports:
+        - 8529:8529
+    environment:
+        - ARANGO_NO_AUTH=1
