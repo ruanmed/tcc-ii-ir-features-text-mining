@@ -17,8 +17,11 @@ Newer versions might be compatible.
 To use the Docker file the following requirements are needed:
 
 * [Docker Community Edition](https://github.com/docker/docker-ce) >= 19.03.x
+* [Docker Compose](https://github.com/docker/compose/) >= 1.23.x
 
-To install Docker CE follow the [guide](https://docs.docker.com/install/#supported-platforms) to your platform at Docker Docs website.
+To install Docker CE follow the [guide](https://docs.docker.com/install/#supported-platforms) for your platform at Docker Docs website.
+
+To install Docker Compose follow the [guide](https://docs.docker.com/compose/install/) for your platform at Docker Docs website.
 
 To use the docker-compose.yml file to install the project, run the following command:
 
