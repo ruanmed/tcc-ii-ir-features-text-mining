@@ -6,9 +6,11 @@ This repository contains the code used by Ruan de Medeiros Bahia to pursue his r
 
 The following software and libraries are required to run this project:
 
-* [Elasticsearch](https://github.com/elastic/elasticsearch) 7.4.0
-* [ArangoDB](https://github.com/arangodb/arangodb) 3.5.1
-* [Zettair](http://www.seg.rmit.edu.au/zettair/index.html) 0.94 ([unofficial repository available here](https://github.com/ruanmed/zettair/))
+* [Elasticsearch](https://github.com/elastic/elasticsearch) 7.4.0 ([documentation](https://www.elastic.co/guide/en/elasticsearch/reference/7.4/index.html))
+* [ArangoDB](https://github.com/arangodb/arangodb) 3.5.1 ([documentation](https://www.arangodb.com/docs/3.5/aql/index.html))
+* [Zettair](http://www.seg.rmit.edu.au/zettair/index.html) 0.94 ([unofficial repository](https://github.com/ruanmed/zettair/) | [documentation](http://www.seg.rmit.edu.au/zettair/documentation.html))
+* [elasticsearch-py](https://github.com/elastic/elasticsearch-py) 7.0.5 ([pip package](https://pypi.org/project/elasticsearch/) | [documentation](https://elasticsearch-py.readthedocs.io/))
+* [python-arango](https://github.com/joowani/python-arango) 5.2.1 ([pip package](https://pypi.org/project/python-arango/) | [documentation](https://python-driver-for-arangodb.readthedocs.io/))
 
 Newer versions might be compatible.
 
