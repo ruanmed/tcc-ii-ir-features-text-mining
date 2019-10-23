@@ -147,6 +147,13 @@ class IndexToolManager:
 
         self.arangoCollection.import_bulk(documentList)
 
+    def queryArango(self, query):
+        aqlquery = f"FOR d IN {str(self.arangoViewName)} SEARCH ANALYZER(d.text IN TOKENS('{str(query)}', 'text_en'), 'text_en') SORT BM25(d, {float(self.bm25_k1)}, {float(self.bm25_b)}) DESC LET myScore = BM25(d, {float(self.bm25_k1)}, {float(self.bm25_b)}) RETURN {{ doc: d, score: myScore }}"
+        cursor = self.arangoDb.aql.execute(aqlquery, count=True)
+        
+        for item in cursor.batch():
+            print(item['doc']['docno'], item['score'])
+
     def initializeElastic(self):
         # Initialize the Elasticsearch client.
         self.elasticClient = Elasticsearch(hosts='http://localhost:9200')
@@ -224,3 +231,57 @@ testTool = IndexToolManager(indexName='default_index')
 bulkBody = testTool.bulkInsertGeneratorElastic([{'id':'23232', 'text': 'hueheuheu'}, {'id':'12345678', 'text': 'hmmmmmm'}])
 
 print(bulkBody)
+
+
+import xmltodict
+import pprint
+import json
+
+my_xml = """
+    <audience>
+      <id what="attribute">123</id>
+      <name>Shubham</name>
+    </audience>
+"""
+my_dict = xmltodict.parse(my_xml)
+print(my_dict['audience']['id'])
+print(my_dict['audience']['id']['@what'])
+
+# with open('articles.xml') as fd:
+#     my_dict = xmltodict.parse(fd.read())
+
+
+# for d in my_dict['articles']['article']:
+#     print('\n')
+    # for item in d['p']:
+        # print(item)
+    # for k, v in d.items():
+    #     print(k, v)
+
+from xml.dom import minidom
+
+# parse an xml file by name
+mydoc = minidom.parse('articles.xml')
+
+items = mydoc.getElementsByTagName('article')
+
+def get_text_from_child(tag):
+    text = ' '
+    if tag.text != None:
+        text = str(text + tag.text)
+    count = 0
+    for child in tag:
+        count = count + 1
+        text = str(text + get_text_from_child(child))
+    return text
+
+# print(items[0].childNodes)
+
+import xml.etree.ElementTree as ET
+tree = ET.parse('articles.xml')
+root = tree.getroot()
+
+print(get_text_from_child(root))
+# for child_of_root in root:
+#     print(child_of_root.text, child_of_root.attrib)
+    # print(get_text_from_child(child_of_root))
