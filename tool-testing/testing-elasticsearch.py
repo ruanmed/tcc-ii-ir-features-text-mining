@@ -61,8 +61,8 @@ for item in moby_reduced:
 
 # res = es.index(index="test-index", doc_type='tweet', id=17, body=doc)
 
-res = es.get(index=index_name, doc_type='paragraph', id=19)
-print(res['_source'])
+# res = es.get(index=index_name, doc_type='paragraph', id=19)
+# print(res['_source'])
 
 es.indices.refresh(index=index_name)
 
@@ -72,4 +72,13 @@ es.indices.refresh(index=index_name)
 #     print("%(timestamp)s %(author)s: %(text)s" % hit["_source"])
 
 res = es.search(index=index_name, body={"query": {"match": {"text": "sea whales"}}})
-print(res)
+
+for hit in res['hits']['hits']:
+    print([hit['_score'], hit['_id']])
+
+print("SECOND QUERY")
+
+res = es.search(index=index_name, body={"query": {"match": {"text": "the"}}})
+
+for hit in res['hits']['hits']:
+    print([hit['_score'], hit['_id']])
