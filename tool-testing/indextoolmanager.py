@@ -1,13 +1,14 @@
-import os
-import time
-import timeit
-import pprint
+# import os
+# import time
+# import timeit
+# import pprint
 import subprocess
-from datetime import datetime
+# from datetime import datetime
 from arango import ArangoClient
 from elasticsearch import Elasticsearch
 
 import xml.etree.ElementTree as ET
+
 
 class IndexToolManager:
     '''
@@ -20,7 +21,7 @@ class IndexToolManager:
     ----------
     indexName : str
         a string to refer to the current working data set
-    
+
     bm25_b : float
         BM25 b parameter to adjust the document length compensation
 
@@ -37,7 +38,7 @@ class IndexToolManager:
 
     '''
 
-    def __init__(self, indexName = 'default_index', bm25_b = 0.75, bm25_k1 = 1.2, bm25_k3 = 0.0):
+    def __init__(self, indexName='default_index', bm25_b=0.75, bm25_k1=1.2, bm25_k3=0.0):
         self.indexName = indexName
         self.bm25_b = bm25_b
         self.bm25_k1 = bm25_k1
@@ -57,15 +58,15 @@ class IndexToolManager:
         '''
 
         text = ' '
-        if tag.text != None:
+        if tag.text is not None:
             text = str(text + tag.text)
         count = 0
         for child in tag:
             count = count + 1
             text = str(text + self.get_text_from_child(child))
         return text
-    
-    def get_documents_DB_AUTHORPROF(self, documents_xml_folder = 'db_authorprof/en/', truth_txt = 'db_authorprof/truth.txt'):
+
+    def get_documents_DB_AUTHORPROF(self, documents_xml_folder='db_authorprof/en/', truth_txt='db_authorprof/truth.txt'):
         '''
         Generates a list with all documents from DB_AUTHORPROF formatted files.
 
@@ -99,15 +100,15 @@ class IndexToolManager:
 
             number = 1
             for child in root_author.iter():
-                document = { 'id' : str(author_id + '-'+ str(number)), 'gender' : str(gender),
-                             'text' : child.text
-                }
+                document = {'id': str(author_id + '-' + str(number)), 'gender': str(gender),
+                            'text': child.text
+                            }
                 number = number + 1
                 documents.append(document)
 
         return documents
 
-    def get_documents_DB_BOTGENDER(self, documents_xml_folder = 'db_botgender/en/', truth_txt = 'db_authorprof/truth.txt'):
+    def get_documents_DB_BOTGENDER(self, documents_xml_folder='db_botgender/en/', truth_txt='db_authorprof/truth.txt'):
         '''
         Generates a list with all documents from DB_BOTGENDER formatted files.
 
@@ -141,15 +142,15 @@ class IndexToolManager:
 
             number = 1
             for child in root_author.iter():
-                document = { 'id' : str(author_id + '-'+ str(number)), 'kind' : str(kind), 'gender' : str(gender),
-                             'text' : child.text
-                }
+                document = {'id': str(author_id + '-' + str(number)), 'kind': str(kind), 'gender': str(gender),
+                            'text': child.text
+                            }
                 number = number + 1
                 documents.append(document)
 
         return documents
 
-    def get_documents_DB_HYPERPARTISAN(self, articles_xml = 'db_hyperpartisan/articles.xml', ground_truth_xml = 'db_hyperpartisan/ground_truth.xml'):
+    def get_documents_DB_HYPERPARTISAN(self, articles_xml='db_hyperpartisan/articles.xml', ground_truth_xml='db_hyperpartisan/ground_truth.xml'):
         '''
         Generates a list with all documents from DB_HYPERPARTISAN formatted files.
 
@@ -172,7 +173,8 @@ class IndexToolManager:
         root_ground_truth = tree_ground_truth.getroot()
 
         for a_child, g_child in zip(root_articles, root_ground_truth):
-            document = {**a_child.attrib, **g_child.attrib, 'text' : str(self.get_text_from_child(a_child))}
+            document = {**a_child.attrib, **g_child.attrib,
+                        'text': str(self.get_text_from_child(a_child))}
             documents.append(document)
         return documents
 
@@ -198,10 +200,11 @@ class IndexToolManager:
         # Create a new database named "test" if it does not exist.
         if not sys_db.has_database(index_name):
             sys_db.create_database(index_name)
-                
+
         # Connect to "test" database as root user.
         # This returns an API wrapper for "test" database.
-        self.arangoDb = self.arangoClient.db(index_name, username=None, password=None)
+        self.arangoDb = self.arangoClient.db(
+            index_name, username=None, password=None)
 
         db = self.arangoDb
         # Create a new collection named "students" if it does not exist.
@@ -225,10 +228,10 @@ class IndexToolManager:
                     'consolidationIntervalMsec': 0,
                     'links': {
                         index_name: {
-                            "analyzers" : [
-                                "text_en" 
+                            "analyzers": [
+                                "text_en"
                             ],
-                            "includeAllFields" : True
+                            "includeAllFields": True
                         }
                     }
                 }
@@ -247,10 +250,10 @@ class IndexToolManager:
             Document body/data.
         '''
 
-        document = {'_key': itemKey }
+        document = {'_key': itemKey}
         document.update(itemBody)
         self.arangoCollection.insert(document)
-    
+
     def insertDocumentArango(self, document):
         '''
         Inserts a document in the ArangoDB 'indexName' collection.
@@ -278,8 +281,8 @@ class IndexToolManager:
         tempdict = bulkItems.copy()
         for item in tempdict:
             document = {
-                        '_key': item.pop('id'),
-                        **item
+                '_key': item.pop('id'),
+                **item
             }
             documentList.append(document)
 
@@ -294,9 +297,9 @@ class IndexToolManager:
         documentList : list of dicts
             List of documents to be inserted in the ArangoDB collection.
             Every document must have an '_key' field.
-            e.g. of document list: 
-                [{ '_key': 'document1', 'field1' : 'value1', 'field2' : 'value2'}, 
-                { '_key': 'document2', 'field1' : 'value4', 'field2' : 'value5'}]
+            e.g. of document list:
+                [{'_key': 'document1', 'field1': 'value1', 'field2': 'value2'},
+                {'_key': 'document2', 'field1': 'value4', 'field2': 'value5'}]
         '''
 
         self.arangoCollection.import_bulk(documentList)
@@ -304,7 +307,7 @@ class IndexToolManager:
     def queryArango(self, query):
         aqlquery = f"FOR d IN {str(self.arangoViewName)} SEARCH ANALYZER(d.text IN TOKENS('{str(query)}', 'text_en'), 'text_en') SORT BM25(d, {float(self.bm25_k1)}, {float(self.bm25_b)}) DESC LET myScore = BM25(d, {float(self.bm25_k1)}, {float(self.bm25_b)}) RETURN {{ doc: d, score: myScore }}"
         cursor = self.arangoDb.aql.execute(aqlquery, count=True)
-        
+
         for item in cursor.batch():
             print(item['doc']['docno'], item['score'])
 
@@ -323,7 +326,7 @@ class IndexToolManager:
 
         self.elasticDocumentType = '_doc'
 
-    def insertElastic(self, itemKey, itemBody):        
+    def insertElastic(self, itemKey, itemBody):
         '''
         Inserts a document in the Elasticsearch database.
 
@@ -336,7 +339,8 @@ class IndexToolManager:
             Document body/data.
         '''
 
-        self.elasticClient.index(index=self.indexName, doc_type=self.elasticDocumentType, id=itemKey, body=itemBody)
+        self.elasticClient.index(
+            index=self.indexName, doc_type=self.elasticDocumentType, id=itemKey, body=itemBody)
 
     def bulkInsertGeneratorElastic(self, bulkItems):
         '''
@@ -353,17 +357,17 @@ class IndexToolManager:
         # item['_id'] = item.pop('id')
         for item in tempdict:
             action = [
-                { 'index' :
+                {'index':
                     {
                         "_index": self.indexName,
                         "_id": item.pop('id')
                     }
-                },
+                 },
                 item
             ]
             bulkBody.extend(action)
 
-        return bulkBody           
+        return bulkBody
 
     def bulkElastic(self, bulkBody):
         '''
@@ -381,10 +385,47 @@ class IndexToolManager:
         self.elasticClient.bulk(index=self.indexName, body=bulkBody)
 
     def queryElastic(self, query):
-        result = self.elasticClient.search(index=self.indexName, body={"query": {"match": {"text": str(query)}}})
+        result = self.elasticClient.search(index=self.indexName, body={
+                                           "query": {"match": {"text": str(query)}}})
         for hit in result['hits']['hits']:
             print([hit['_score'], hit['_id']])
 
+    def initializeZettair(self):
+        print('')
+
+    def saveToTrecFileZettair(self, bulkItems=[]):
+        filename = str(self.indexName) + '.txt'
+        f = open(filename, "w+")
+        for d in bulkItems:
+            f.write(f'<DOC>\n<DOCNO>{d.id}</DOCNO>\n{d.text}\n</DOC>\n')
+        f.close()
+
+    def indexZettair(self):
+        trecfile = str(self.indexName) + '.txt'
+        cmd = f'zet -i -f {self.indexName} -t TREC --big-and-fast {trecfile}'
+        res = subprocess.run(cmd, shell=True, universal_newlines=True,
+                             check=True, capture_output=True)
+        # subprocess.Popen(['zet', '--index',  '--filename',
+        #                   self.indexName, '-t', 'TREC',
+        #                   '--big-and-fast', str(trecfile)],
+        #                  stdin=subprocess.PIPE,
+        #                  stdout=subprocess.PIPE,
+        #                  stderr=subprocess.PIPE)
+        print(res)
+
+    def queryZettair(self, query):
+        a = subprocess.Popen(['zet',  '-f', self.indexName,
+                              '--okapi', f'--b={float(self.bm25_b)}',
+                              f'--k1={float(self.bm25_k1)}',
+                              f'--k3={float(self.bm25_k3)}',
+                              '--summary=none', '--big-and-fast'],
+                             stdin=subprocess.PIPE,
+                             stdout=subprocess.PIPE,
+                             stderr=subprocess.PIPE)
+
+        out, err = a.communicate(query.encode('ascii'))
+        print(out.decode('utf-8'))
+        print(err)
 
 # bulkBody = testTool.bulkInsertGeneratorElastic([{'id':'23232', 'text': 'hueheuheu'}, {'id':'12345678', 'text': 'hmmmmmm'}])
 

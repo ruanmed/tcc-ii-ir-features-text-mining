@@ -11,11 +11,13 @@ botgender_truth_txt = 'db_botgender/truth.txt'
 
 # DB_AUTHORPROF
 
+
 def index_DB_AUTHORPROF_TOOL_ARANGO():
-    testTool = IndexToolManager(indexName='botgender')
+    testTool = IndexToolManager(indexName='authorprof')
 
     start = time.time()
-    bulk = testTool.get_documents_DB_AUTHORPROF(authorprof_xml_folder, authorprof_truth_txt)
+    bulk = testTool.get_documents_DB_AUTHORPROF(
+        authorprof_xml_folder, authorprof_truth_txt)
     end = time.time()
     print('TIME get_documents_DB_AUTHORPROF ', end - start)
 
@@ -30,11 +32,13 @@ def index_DB_AUTHORPROF_TOOL_ARANGO():
     end = time.time()
     print('TIME for-loop insertDocumentArango ', end - start)
 
+
 def index_bulk_DB_AUTHORPROF_TOOL_ARANGO():
-    testTool = IndexToolManager(indexName='botgender_bulk')
+    testTool = IndexToolManager(indexName='authorprof_bulk')
 
     start = time.time()
-    bulk = testTool.get_documents_DB_AUTHORPROF(authorprof_xml_folder, authorprof_truth_txt)
+    bulk = testTool.get_documents_DB_AUTHORPROF(
+        authorprof_xml_folder, authorprof_truth_txt)
     end = time.time()
     print('TIME get_documents_DB_AUTHORPROF ', end - start)
 
@@ -48,25 +52,29 @@ def index_bulk_DB_AUTHORPROF_TOOL_ARANGO():
     end = time.time()
     print('TIME bulkImportArango ', end - start)
 
+
 def index_DB_AUTHORPROF_TOOL_ELASTIC():
-    testTool = IndexToolManager(indexName='botgender')
+    testTool = IndexToolManager(indexName='authorprof')
 
     start = time.time()
-    bulk = testTool.get_documents_DB_AUTHORPROF(authorprof_xml_folder, authorprof_truth_txt)
+    bulk = testTool.get_documents_DB_AUTHORPROF(
+        authorprof_xml_folder, authorprof_truth_txt)
     end = time.time()
     print('TIME get_documents_DB_AUTHORPROF ', end - start)
 
     start = time.time()
     for doc in bulk:
-        testTool.insertElastic(doc.pop('id'),doc)
+        testTool.insertElastic(doc.pop('id'), doc)
     end = time.time()
     print('TIME for-loop insertElastic ', end - start)
 
+
 def index_bulk_DB_AUTHORPROF_TOOL_ELASTIC():
-    testTool = IndexToolManager(indexName='botgender_bulk')
+    testTool = IndexToolManager(indexName='authorprof_bulk')
 
     start = time.time()
-    bulk = testTool.get_documents_DB_AUTHORPROF(authorprof_xml_folder, authorprof_truth_txt)
+    bulk = testTool.get_documents_DB_AUTHORPROF(
+        authorprof_xml_folder, authorprof_truth_txt)
     end = time.time()
     print('TIME get_documents_DB_AUTHORPROF ', end - start)
 
@@ -79,6 +87,26 @@ def index_bulk_DB_AUTHORPROF_TOOL_ELASTIC():
     testTool.bulkElastic(bulkBody)
     end = time.time()
     print('TIME bulkElastic ', end - start)
+
+
+def index_bulk_DB_AUTHORPROF_TOOL_ZETTAIR():
+    testTool = IndexToolManager(indexName='authorprof_bulk')
+
+    start = time.time()
+    bulk = testTool.get_documents_DB_AUTHORPROF(
+        authorprof_xml_folder, authorprof_truth_txt)
+    end = time.time()
+    print('TIME get_documents_DB_AUTHORPROF ', end - start)
+
+    start = time.time()
+    testTool.saveToTrecFileZettair(bulk)
+    end = time.time()
+    print('TIME saveToTrecFileZettair ', end - start)
+
+    start = time.time()
+    testTool.indexZettair()
+    end = time.time()
+    print('TIME indexZettair ', end - start)
 
 
 # DB_BOTGENDER
@@ -87,7 +115,8 @@ def index_DB_BOTGENDER_TOOL_ARANGO():
     testTool = IndexToolManager(indexName='botgender')
 
     start = time.time()
-    bulk = testTool.get_documents_DB_BOTGENDER(botgender_xml_folder, botgender_truth_txt)
+    bulk = testTool.get_documents_DB_BOTGENDER(
+        botgender_xml_folder, botgender_truth_txt)
     end = time.time()
     print('TIME get_documents_DB_BOTGENDER ', end - start)
 
@@ -102,11 +131,13 @@ def index_DB_BOTGENDER_TOOL_ARANGO():
     end = time.time()
     print('TIME for-loop insertDocumentArango ', end - start)
 
+
 def index_bulk_DB_BOTGENDER_TOOL_ARANGO():
     testTool = IndexToolManager(indexName='botgender_bulk')
 
     start = time.time()
-    bulk = testTool.get_documents_DB_BOTGENDER(botgender_xml_folder, botgender_truth_txt)
+    bulk = testTool.get_documents_DB_BOTGENDER(
+        botgender_xml_folder, botgender_truth_txt)
     end = time.time()
     print('TIME get_documents_DB_BOTGENDER ', end - start)
 
@@ -120,25 +151,29 @@ def index_bulk_DB_BOTGENDER_TOOL_ARANGO():
     end = time.time()
     print('TIME bulkImportArango ', end - start)
 
+
 def index_DB_BOTGENDER_TOOL_ELASTIC():
     testTool = IndexToolManager(indexName='botgender')
 
     start = time.time()
-    bulk = testTool.get_documents_DB_BOTGENDER(botgender_xml_folder, botgender_truth_txt)
+    bulk = testTool.get_documents_DB_BOTGENDER(
+        botgender_xml_folder, botgender_truth_txt)
     end = time.time()
     print('TIME get_documents_DB_BOTGENDER ', end - start)
 
     start = time.time()
     for doc in bulk:
-        testTool.insertElastic(doc.pop('id'),doc)
+        testTool.insertElastic(doc.pop('id'), doc)
     end = time.time()
     print('TIME for-loop insertElastic ', end - start)
+
 
 def index_bulk_DB_BOTGENDER_TOOL_ELASTIC():
     testTool = IndexToolManager(indexName='botgender_bulk')
 
     start = time.time()
-    bulk = testTool.get_documents_DB_BOTGENDER(botgender_xml_folder, botgender_truth_txt)
+    bulk = testTool.get_documents_DB_BOTGENDER(
+        botgender_xml_folder, botgender_truth_txt)
     end = time.time()
     print('TIME get_documents_DB_BOTGENDER ', end - start)
 
@@ -151,6 +186,26 @@ def index_bulk_DB_BOTGENDER_TOOL_ELASTIC():
     testTool.bulkElastic(bulkBody)
     end = time.time()
     print('TIME bulkElastic ', end - start)
+
+
+def index_bulk_DB_BOTGENDER_TOOL_ZETTAIR():
+    testTool = IndexToolManager(indexName='botgender_bulk')
+
+    start = time.time()
+    bulk = testTool.get_documents_DB_BOTGENDER(
+        botgender_xml_folder, botgender_truth_txt)
+    end = time.time()
+    print('TIME get_documents_DB_BOTGENDER ', end - start)
+
+    start = time.time()
+    testTool.saveToTrecFileZettair(bulk)
+    end = time.time()
+    print('TIME saveToTrecFileZettair ', end - start)
+
+    start = time.time()
+    testTool.indexZettair()
+    end = time.time()
+    print('TIME indexZettair ', end - start)
 
 
 # DB_HYPERPARTISAN
@@ -159,7 +214,8 @@ def index_DB_HYPERPARTISAN_TOOL_ARANGO():
     testTool = IndexToolManager(indexName='hyperpartisan')
 
     start = time.time()
-    bulk = testTool.get_documents_DB_HYPERPARTISAN(articles_xml, ground_truth_xml)
+    bulk = testTool.get_documents_DB_HYPERPARTISAN(
+        articles_xml, ground_truth_xml)
     end = time.time()
     print('TIME get_documents_DB_HYPERPARTISAN ', end - start)
 
@@ -174,11 +230,13 @@ def index_DB_HYPERPARTISAN_TOOL_ARANGO():
     end = time.time()
     print('TIME for-loop insertDocumentArango ', end - start)
 
+
 def index_bulk_DB_HYPERPARTISAN_TOOL_ARANGO():
     testTool = IndexToolManager(indexName='hyperpartisan_bulk')
 
     start = time.time()
-    bulk = testTool.get_documents_DB_HYPERPARTISAN(articles_xml, ground_truth_xml)
+    bulk = testTool.get_documents_DB_HYPERPARTISAN(
+        articles_xml, ground_truth_xml)
     end = time.time()
     print('TIME get_documents_DB_HYPERPARTISAN ', end - start)
 
@@ -192,25 +250,29 @@ def index_bulk_DB_HYPERPARTISAN_TOOL_ARANGO():
     end = time.time()
     print('TIME bulkImportArango ', end - start)
 
+
 def index_DB_HYPERPARTISAN_TOOL_ELASTIC():
     testTool = IndexToolManager(indexName='hyperpartisan')
 
     start = time.time()
-    bulk = testTool.get_documents_DB_HYPERPARTISAN(articles_xml, ground_truth_xml)
+    bulk = testTool.get_documents_DB_HYPERPARTISAN(
+        articles_xml, ground_truth_xml)
     end = time.time()
     print('TIME get_documents_DB_HYPERPARTISAN ', end - start)
 
     start = time.time()
     for doc in bulk:
-        testTool.insertElastic(doc.pop('id'),doc)
+        testTool.insertElastic(doc.pop('id'), doc)
     end = time.time()
     print('TIME for-loop insertElastic ', end - start)
+
 
 def index_bulk_DB_HYPERPARTISAN_TOOL_ELASTIC():
     testTool = IndexToolManager(indexName='hyperpartisan_bulk')
 
     start = time.time()
-    bulk = testTool.get_documents_DB_HYPERPARTISAN(articles_xml, ground_truth_xml)
+    bulk = testTool.get_documents_DB_HYPERPARTISAN(
+        articles_xml, ground_truth_xml)
     end = time.time()
     print('TIME get_documents_DB_HYPERPARTISAN ', end - start)
 
@@ -225,4 +287,24 @@ def index_bulk_DB_HYPERPARTISAN_TOOL_ELASTIC():
     print('TIME bulkElastic ', end - start)
 
 
-index_DB_HYPERPARTISAN_TOOL_ARANGO()
+def index_bulk_DB_HYPERPARTISAN_TOOL_ZETTAIR():
+    testTool = IndexToolManager(indexName='hyperpartisan_bulk')
+
+    start = time.time()
+    bulk = testTool.get_documents_DB_HYPERPARTISAN(
+        articles_xml, ground_truth_xml)
+    end = time.time()
+    print('TIME get_documents_DB_HYPERPARTISAN ', end - start)
+
+    start = time.time()
+    testTool.saveToTrecFileZettair(bulk)
+    end = time.time()
+    print('TIME saveToTrecFileZettair ', end - start)
+
+    start = time.time()
+    testTool.indexZettair()
+    end = time.time()
+    print('TIME indexZettair ', end - start)
+
+
+# index_bulk_DB_HYPERPARTISAN_TOOL_ARANGO()
