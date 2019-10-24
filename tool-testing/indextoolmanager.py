@@ -1,7 +1,8 @@
+import os
 import time
+import timeit
 import pprint
 import subprocess
-import os
 from datetime import datetime
 from arango import ArangoClient
 from elasticsearch import Elasticsearch
@@ -63,8 +64,50 @@ class IndexToolManager:
             count = count + 1
             text = str(text + self.get_text_from_child(child))
         return text
+    
+    def get_documents_DB_AUTHORPROF(self, documents_xml_folder = 'db_authorprof/en/', truth_txt = 'db_authorprof/truth.txt'):
+        '''
+        Generates a list with all documents from DB_AUTHORPROF formatted files.
 
-    def get_documents_DB_BOTGENDER(self, documents_xml_folder = 'botgender_documents/', truth_txt = 'truth.txt'):
+        Parameters
+        ----------
+        documents_xml_folder : str
+            Folder that contains the XML files from the authors' documents (twits),
+            must follow the DB_AUTHORPROF task XML format.
+
+        truth_txt : str
+            Truth TXT file with authors' classifications of gender { female | male },
+            must follow the DB_AUTHORPROF task TXT format.
+        '''
+        documents = []
+
+        lines = []
+        separator = ':::'
+
+        # Open the truth file
+        with open(truth_txt) as f:
+            lines = f.read().splitlines()
+
+        # Iterates over the lines, and reads each author's XML file adding the documents to the list
+        for line in lines:
+            author_id, gender = line.split(separator)
+            author_xml = documents_xml_folder + author_id + '.xml'
+
+            # Open the author XML file
+            tree_author = ET.parse(str(author_xml))
+            root_author = tree_author.getroot()
+
+            number = 1
+            for child in root_author.iter():
+                document = { 'id' : str(author_id + '-'+ str(number)), 'gender' : str(gender),
+                             'text' : child.text
+                }
+                number = number + 1
+                documents.append(document)
+
+        return documents
+
+    def get_documents_DB_BOTGENDER(self, documents_xml_folder = 'db_botgender/en/', truth_txt = 'db_authorprof/truth.txt'):
         '''
         Generates a list with all documents from DB_BOTGENDER formatted files.
 
@@ -106,7 +149,7 @@ class IndexToolManager:
 
         return documents
 
-    def get_documents_DB_HYPERPARTISAN(self, articles_xml = 'articles.xml', ground_truth_xml = 'ground_truth.xml'):
+    def get_documents_DB_HYPERPARTISAN(self, articles_xml = 'db_hyperpartisan/articles.xml', ground_truth_xml = 'db_hyperpartisan/ground_truth.xml'):
         '''
         Generates a list with all documents from DB_HYPERPARTISAN formatted files.
 
@@ -134,6 +177,16 @@ class IndexToolManager:
         return documents
 
     def initializeArango(self):
+        '''
+        Initialize ArangoDB with the specific parameters used by the repository,
+        also sets it up to the research, creating the collection and view needed.
+
+        Parameters
+        ----------
+        none :
+            none
+        '''
+
         # Initialize the ArangoDB client.
         self.arangoClient = ArangoClient(hosts='http://localhost:8529')
 
@@ -256,6 +309,15 @@ class IndexToolManager:
             print(item['doc']['docno'], item['score'])
 
     def initializeElastic(self):
+        '''
+        Initialize Elasticsearch with the specific parameters used by the repository,
+        setting it up to the research.
+
+        Parameters
+        ----------
+        none :
+            none
+        '''
         # Initialize the Elasticsearch client.
         self.elasticClient = Elasticsearch(hosts='http://localhost:9200')
 
@@ -323,71 +385,15 @@ class IndexToolManager:
         for hit in result['hits']['hits']:
             print([hit['_score'], hit['_id']])
 
-testTool = IndexToolManager(indexName='default_index')
 
-bulkBody = testTool.bulkInsertGeneratorElastic([{'id':'23232', 'text': 'hueheuheu'}, {'id':'12345678', 'text': 'hmmmmmm'}])
+# bulkBody = testTool.bulkInsertGeneratorElastic([{'id':'23232', 'text': 'hueheuheu'}, {'id':'12345678', 'text': 'hmmmmmm'}])
 
-print(bulkBody)
+# print(bulkBody)
 
+# pp = pprint.PrettyPrinter(indent=4)
+# # print(items[0].childNodes)
 
-import xmltodict
-import pprint
-import json
+# t_index = timeit.timeit(index_DB_HYPERPARTISAN_TOOL_ARANGO, setup="gc.enable()", number=1)
 
-my_xml = """
-    <audience>
-      <id what="attribute">123</id>
-      <name>Shubham</name>
-    </audience>
-"""
-my_dict = xmltodict.parse(my_xml)
-print(my_dict['audience']['id'])
-print(my_dict['audience']['id']['@what'])
-
-# with open('articles.xml') as fd:
-#     my_dict = xmltodict.parse(fd.read())
-
-
-# for d in my_dict['articles']['article']:
-#     print('\n')
-    # for item in d['p']:
-        # print(item)
-    # for k, v in d.items():
-    #     print(k, v)
-
-from xml.dom import minidom
-
-# parse an xml file by name
-mydoc = minidom.parse('articles.xml')
-
-items = mydoc.getElementsByTagName('article')
-
-def get_text_from_child(tag):
-    text = ' '
-    if tag.text != None:
-        text = str(text + tag.text)
-    count = 0
-    for child in tag:
-        count = count + 1
-        text = str(text + get_text_from_child(child))
-    return text
-pp = pprint.PrettyPrinter(indent=4)
-# print(items[0].childNodes)
-
-# import xml.etree.ElementTree as ET
-# tree = ET.parse('articles.xml')
-# root = tree.getroot()
-# print(get_text_from_child(root))
-# for child_of_root in root:
-#     print(child_of_root.text, child_of_root.attrib)
-    # print(get_text_from_child(child_of_root))
-
-# tree_ground_truth = ET.parse(str('db_botgender/en/2c515694146bb39faddc295e107fe332.xml'))
-# root_ground_truth = tree_ground_truth.getroot()
-
-# print(str(root_ground_truth[0].items()))
-# for child in root_ground_truth.iter():
-#     print(str(child.text))
-
-# pp.pprint(testTool.get_documents_DB_HYPERPARTISAN())
-print(testTool.get_documents_DB_BOTGENDER('db_botgender/en/','truth.txt'))
+# # pp.pprint(testTool.get_documents_DB_HYPERPARTISAN(articles_xml, ground_truth_xml))
+# print(testTool.get_documents_DB_BOTGENDER('db_botgender/en/','truth.txt'))
