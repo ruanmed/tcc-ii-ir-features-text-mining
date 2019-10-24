@@ -2,12 +2,15 @@
 # import time
 # import timeit
 # import pprint
+import math
 import subprocess
 # from datetime import datetime
 from arango import ArangoClient
 from elasticsearch import Elasticsearch
 
 import xml.etree.ElementTree as ET
+
+import pandas as pd
 
 
 class IndexToolManager:
@@ -38,11 +41,13 @@ class IndexToolManager:
 
     '''
 
-    def __init__(self, indexName='default_index', bm25_b=0.75, bm25_k1=1.2, bm25_k3=0.0):
+    def __init__(self, indexName='default_index',
+                 bm25_b=0.75, bm25_k1=1.2, bm25_k3=0.0):
         self.indexName = indexName
-        self.bm25_b = bm25_b
-        self.bm25_k1 = bm25_k1
-        self.bm25_k3 = bm25_k3
+        self.bm25_b = float(bm25_b)
+        self.bm25_k1 = float(bm25_k1)
+        self.bm25_k3 = float(bm25_k3)
+        self.numberResults = 1000
 
         self.initializeArango()
         self.initializeElastic()
@@ -66,7 +71,9 @@ class IndexToolManager:
             text = str(text + self.get_text_from_child(child))
         return text
 
-    def get_documents_DB_AUTHORPROF(self, documents_xml_folder='db_authorprof/en/', truth_txt='db_authorprof/truth.txt'):
+    def get_documents_DB_AUTHORPROF(self,
+                                    documents_xml_folder='db_authorprof/en/',
+                                    truth_txt='db_authorprof/truth.txt'):
         '''
         Generates a list with all documents from DB_AUTHORPROF formatted files.
 
@@ -100,7 +107,8 @@ class IndexToolManager:
 
             number = 1
             for child in root_author.iter():
-                document = {'id': str(author_id + '-' + str(number)), 'gender': str(gender),
+                document = {'id': str(author_id + '-' + str(number)),
+                            'gender': str(gender), 'class': str(gender),
                             'text': child.text
                             }
                 number = number + 1
@@ -108,7 +116,9 @@ class IndexToolManager:
 
         return documents
 
-    def get_documents_DB_BOTGENDER(self, documents_xml_folder='db_botgender/en/', truth_txt='db_authorprof/truth.txt'):
+    def get_documents_DB_BOTGENDER(self,
+                                   documents_xml_folder='db_botgender/en/',
+                                   truth_txt='db_authorprof/truth.txt'):
         '''
         Generates a list with all documents from DB_BOTGENDER formatted files.
 
@@ -142,15 +152,18 @@ class IndexToolManager:
 
             number = 1
             for child in root_author.iter():
-                document = {'id': str(author_id + '-' + str(number)), 'kind': str(kind), 'gender': str(gender),
-                            'text': child.text
+                document = {'id': str(author_id + '-' + str(number)),
+                            'kind': str(kind), 'gender': str(gender),
+                            'text': child.text, 'class': str(kind),
                             }
                 number = number + 1
                 documents.append(document)
 
         return documents
 
-    def get_documents_DB_HYPERPARTISAN(self, articles_xml='db_hyperpartisan/articles.xml', ground_truth_xml='db_hyperpartisan/ground_truth.xml'):
+    def get_documents_DB_HYPERPARTISAN(self,
+                                       articles_xml='db_hyperpartisan/articles.xml',
+                                       ground_truth_xml='db_hyperpartisan/ground_truth.xml'):
         '''
         Generates a list with all documents from DB_HYPERPARTISAN formatted files.
 
@@ -174,9 +187,48 @@ class IndexToolManager:
 
         for a_child, g_child in zip(root_articles, root_ground_truth):
             document = {**a_child.attrib, **g_child.attrib,
-                        'text': str(self.get_text_from_child(a_child))}
+                        'text': str(self.get_text_from_child(a_child)),
+                        'class': str(g_child.get('hyperpartisan')),
+                        }
             documents.append(document)
         return documents
+
+    def calc_IR(self, result_df, positive_class='true'):
+        '''
+        Calculates IR attributes suggested in the research:
+            CLASS_0_BM25_AVG
+            CLASS_0_BM25_COUNT
+            CLASS_0_BM25_SUM
+            CLASS_1_BM25_AVG
+            CLASS_1_BM25_COUNT
+            CLASS_1_BM25_SUM
+        and returns them as a dictionary.
+
+        Parameters
+        ----------
+        result_df : DataFrame
+            A query result dataframe produced by the query methods.
+            Must have the columns:
+                * score
+                * class
+
+        positive_class : str
+            Specifies which 'class' is the positive class.
+        '''
+        df = result_df.copy()
+        CLASS_0 = df.loc[(df['class'] != positive_class)]['score']
+        CLASS_1 = df.loc[(df['class'] == positive_class)]['score']
+        attrib_IR = {
+            'CLASS_0_BM25_AVG': (0 if math.isnan(CLASS_0.mean())
+                                 else CLASS_0.mean()),
+            'CLASS_0_BM25_COUNT': CLASS_0.count(),
+            'CLASS_0_BM25_SUM': CLASS_0.sum(),
+            'CLASS_1_BM25_AVG': (0 if math.isnan(CLASS_1.mean())
+                                 else CLASS_1.mean()),
+            'CLASS_1_BM25_COUNT': CLASS_1.count(),
+            'CLASS_1_BM25_SUM': CLASS_1.sum(),
+        }
+        return attrib_IR
 
     def initializeArango(self):
         '''
@@ -261,7 +313,7 @@ class IndexToolManager:
         Parameters
         ----------
         document : dict
-            Document to be inserted, might contain a '_key' or '_id' value, 
+            Document to be inserted, might contain a '_key' or '_id' value,
             e.g.: '_key' : ' document1',  or '_id' : 'collection_name/document1'
         '''
 
@@ -305,11 +357,27 @@ class IndexToolManager:
         self.arangoCollection.import_bulk(documentList)
 
     def queryArango(self, query):
-        aqlquery = f"FOR d IN {str(self.arangoViewName)} SEARCH ANALYZER(d.text IN TOKENS('{str(query)}', 'text_en'), 'text_en') SORT BM25(d, {float(self.bm25_k1)}, {float(self.bm25_b)}) DESC LET myScore = BM25(d, {float(self.bm25_k1)}, {float(self.bm25_b)}) RETURN {{ doc: d, score: myScore }}"
-        cursor = self.arangoDb.aql.execute(aqlquery, count=True)
+        '''
+        Query ArangoDB view and returns a Pandas DataFrame with the results.
 
+        Parameters
+        ----------
+        query : str
+            Text to be queried to the view using BM25 analyzer.
+        '''
+        aqlquery = (f"FOR d IN {str(self.arangoViewName)} SEARCH "
+                    + f"ANALYZER(d.text IN TOKENS('{str(query)}'"
+                    + f", 'text_en'), 'text_en') "
+                    + f"SORT BM25(d, {self.bm25_k1}, {self.bm25_b}) "
+                    + f"DESC LET sco = BM25(d, {self.bm25_k1}, "
+                    + f"{self.bm25_b}) RETURN {{ doc: d, score: sco }}")
+        cursor = self.arangoDb.aql.execute(aqlquery, count=True)
+        item_list = []
         for item in cursor.batch():
-            print(item['doc']['docno'], item['score'])
+            # print(item)
+            item_list.append([item['score'], item['doc']['_id'].split('/')[-1],
+                              item['doc']['class']])
+        return pd.DataFrame(item_list, columns=['score', 'id', 'class'])
 
     def initializeElastic(self):
         '''
@@ -325,6 +393,22 @@ class IndexToolManager:
         self.elasticClient = Elasticsearch(hosts='http://localhost:9200')
 
         self.elasticDocumentType = '_doc'
+        body = {
+            "settings": {
+                "number_of_shards": 1,
+                "index": {
+                    "similarity": {
+                        "default": {
+                            "type": "BM25",
+                            "b": self.bm25_b,
+                            "k1": self.bm25_k1
+                        }
+                    }
+                }
+            }
+        }
+        if not self.elasticClient.indices.exists(index=self.indexName):
+            self.elasticClient.indices.create(index=self.indexName, body=body)
 
     def insertElastic(self, itemKey, itemBody):
         '''
@@ -378,54 +462,106 @@ class IndexToolManager:
         bulkBody : list or str with operations separated by newlines ('\n')
             Bulk operations to be executed, already in the format and order to be executed.
             All operations must have an '_id' in their metadata field.
-            e.g. of index operation over 'index_name' index: 
+            e.g. of index operation over 'index_name' index:
                 [{ 'index': {'_index': 'index_name', '_id' : 'document_id'}, {'field1' : 'value1'}]
         '''
 
         self.elasticClient.bulk(index=self.indexName, body=bulkBody)
 
+    def refreshElastic(self):
+        '''
+        Refresh Elasticsearch indices.
+
+        Parameters
+        ----------
+        none : none
+        '''
+        self.elasticClient.indices.refresh(index=self.indexName)
+
     def queryElastic(self, query):
+        '''
+        Query Elasticsearch index, returns a Pandas DataFrame with the results.
+
+        Parameters
+        ----------
+        query : str
+            Text to be queried to the index using BM25 similarity
+            implemented by Elasticsearch.
+        '''
         result = self.elasticClient.search(index=self.indexName, body={
-                                           "query": {"match": {"text": str(query)}}})
+            "query": {"match": {"text": str(query)}}})
+        hit_list = []
         for hit in result['hits']['hits']:
-            print([hit['_score'], hit['_id']])
+            hit_list.append(
+                [hit['_score'], hit['_id'], hit['_source']['class']])
+        return pd.DataFrame(hit_list, columns=['score', 'id', 'class'])
 
     def initializeZettair(self):
         print('')
 
-    def saveToTrecFileZettair(self, bulkItems=[]):
+    def saveToTrecFileZettair(self, bulkItems):
         filename = str(self.indexName) + '.txt'
         f = open(filename, "w+")
+
         for d in bulkItems:
-            f.write(f'<DOC>\n<DOCNO>{d.id}</DOCNO>\n{d.text}\n</DOC>\n')
+            f.write(f'<DOC>\n<DOCNO>{d["id"]}</DOCNO>\n{d["text"]}\n</DOC>\n')
         f.close()
 
     def indexZettair(self):
         trecfile = str(self.indexName) + '.txt'
         cmd = f'zet -i -f {self.indexName} -t TREC --big-and-fast {trecfile}'
-        res = subprocess.run(cmd, shell=True, universal_newlines=True,
+        res = subprocess.run(cmd, shell=False, universal_newlines=True,
                              check=True, capture_output=True)
-        # subprocess.Popen(['zet', '--index',  '--filename',
+        # p = subprocess.Popen(['zet', '--index',  '--filename',
         #                   self.indexName, '-t', 'TREC',
         #                   '--big-and-fast', str(trecfile)],
         #                  stdin=subprocess.PIPE,
         #                  stdout=subprocess.PIPE,
         #                  stderr=subprocess.PIPE)
+        # p.terminate()
         print(res)
 
     def queryZettair(self, query):
-        a = subprocess.Popen(['zet',  '-f', self.indexName,
-                              '--okapi', f'--b={float(self.bm25_b)}',
-                              f'--k1={float(self.bm25_k1)}',
-                              f'--k3={float(self.bm25_k3)}',
+        '''
+        Query Zettair index, returns a Pandas DataFrame with the results.
+
+        Parameters
+        ----------
+        query : str
+            Text to be queried to the index using BM25 metric.
+        '''
+        p = subprocess.Popen(['zet',  '-f', self.indexName,
+                              '-n', str(int(self.numberResults)),
+                              '--okapi', f'--b={self.bm25_b}',
+                              f'--k1={self.bm25_k1}',
+                              f'--k3={self.bm25_k3}',
                               '--summary=none', '--big-and-fast'],
                              stdin=subprocess.PIPE,
                              stdout=subprocess.PIPE,
                              stderr=subprocess.PIPE)
+        out, err = p.communicate(query.encode('utf-8'))
+        p.terminate()
+        # print(out.decode('utf-8'))
+        # print(err)
 
-        out, err = a.communicate(query.encode('ascii'))
-        print(out.decode('utf-8'))
-        print(err)
+        lines = []
+        # Process Zettair query result
+        linesx = out.decode("utf-8").split('>')[1].splitlines()
+        # linesx = (line for line in linesx if line)    # Non-blank lines
+        for line in linesx:
+            if line:
+                lines.append(line)
+            else:  # breaks after first blank line, next line is the summary
+                break
+        # Iterates over the lines, extracts the id and score
+        res_list = []
+        for line in lines:
+            cur_id = line.split()[1]
+            score = line.split()[3].split(',')[0]
+            cl = 'true'
+            res_list.append(
+                [score, cur_id, cl])
+        return pd.DataFrame(res_list, columns=['score', 'id', 'class'])
 
 # bulkBody = testTool.bulkInsertGeneratorElastic([{'id':'23232', 'text': 'hueheuheu'}, {'id':'12345678', 'text': 'hmmmmmm'}])
 

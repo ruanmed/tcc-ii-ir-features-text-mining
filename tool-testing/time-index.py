@@ -1,13 +1,14 @@
 from indextoolmanager import IndexToolManager
 import time
-import timeit
+# import timeit
+import pprint
 
-articles_xml = 'db_hyperpartisan/articles.xml'
-ground_truth_xml = 'db_hyperpartisan/ground_truth.xml'
 authorprof_xml_folder = 'db_authorprof/en/'
 authorprof_truth_txt = 'db_authorprof/truth.txt'
 botgender_xml_folder = 'db_botgender/en/'
 botgender_truth_txt = 'db_botgender/truth.txt'
+articles_xml = 'db_hyperpartisan/articles.xml'
+ground_truth_xml = 'db_hyperpartisan/ground_truth.xml'
 
 # DB_AUTHORPROF
 
@@ -68,6 +69,11 @@ def index_DB_AUTHORPROF_TOOL_ELASTIC():
     end = time.time()
     print('TIME for-loop insertElastic ', end - start)
 
+    start = time.time()
+    testTool.refreshElastic()
+    end = time.time()
+    print('TIME refreshElastic ', end - start)
+
 
 def index_bulk_DB_AUTHORPROF_TOOL_ELASTIC():
     testTool = IndexToolManager(indexName='authorprof_bulk')
@@ -87,6 +93,11 @@ def index_bulk_DB_AUTHORPROF_TOOL_ELASTIC():
     testTool.bulkElastic(bulkBody)
     end = time.time()
     print('TIME bulkElastic ', end - start)
+
+    start = time.time()
+    testTool.refreshElastic()
+    end = time.time()
+    print('TIME refreshElastic ', end - start)
 
 
 def index_bulk_DB_AUTHORPROF_TOOL_ZETTAIR():
@@ -167,6 +178,11 @@ def index_DB_BOTGENDER_TOOL_ELASTIC():
     end = time.time()
     print('TIME for-loop insertElastic ', end - start)
 
+    start = time.time()
+    testTool.refreshElastic()
+    end = time.time()
+    print('TIME refreshElastic ', end - start)
+
 
 def index_bulk_DB_BOTGENDER_TOOL_ELASTIC():
     testTool = IndexToolManager(indexName='botgender_bulk')
@@ -186,6 +202,11 @@ def index_bulk_DB_BOTGENDER_TOOL_ELASTIC():
     testTool.bulkElastic(bulkBody)
     end = time.time()
     print('TIME bulkElastic ', end - start)
+
+    start = time.time()
+    testTool.refreshElastic()
+    end = time.time()
+    print('TIME refreshElastic ', end - start)
 
 
 def index_bulk_DB_BOTGENDER_TOOL_ZETTAIR():
@@ -266,6 +287,11 @@ def index_DB_HYPERPARTISAN_TOOL_ELASTIC():
     end = time.time()
     print('TIME for-loop insertElastic ', end - start)
 
+    start = time.time()
+    testTool.refreshElastic()
+    end = time.time()
+    print('TIME refreshElastic ', end - start)
+
 
 def index_bulk_DB_HYPERPARTISAN_TOOL_ELASTIC():
     testTool = IndexToolManager(indexName='hyperpartisan_bulk')
@@ -285,6 +311,11 @@ def index_bulk_DB_HYPERPARTISAN_TOOL_ELASTIC():
     testTool.bulkElastic(bulkBody)
     end = time.time()
     print('TIME bulkElastic ', end - start)
+
+    start = time.time()
+    testTool.refreshElastic()
+    end = time.time()
+    print('TIME refreshElastic ', end - start)
 
 
 def index_bulk_DB_HYPERPARTISAN_TOOL_ZETTAIR():
@@ -308,3 +339,23 @@ def index_bulk_DB_HYPERPARTISAN_TOOL_ZETTAIR():
 
 
 # index_bulk_DB_HYPERPARTISAN_TOOL_ARANGO()
+
+# index_bulk_DB_HYPERPARTISAN_TOOL_ELASTIC()
+
+# index_bulk_DB_HYPERPARTISAN_TOOL_ZETTAIR()
+
+
+# index_DB_HYPERPARTISAN_TOOL_ARANGO()
+
+# index_DB_HYPERPARTISAN_TOOL_ELASTIC()
+
+pp = pprint.PrettyPrinter(indent=4)
+
+testTool = IndexToolManager(indexName='hyperpartisan_bulk')
+
+query = 'the'
+# print(testTool.queryArango(query))
+# result_df = testTool.queryElastic(query)
+# pp.pprint(testTool.calc_IR(result_df, 'true'))
+# print(testTool.queryElastic(query))
+print(testTool.queryZettair(query))
