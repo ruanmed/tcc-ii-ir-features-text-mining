@@ -1,6 +1,18 @@
-# Research about the performance of Information Retrieval based features for Text Mining tasks
+# Research on the performance of Information Retrieval based features for Text Mining tasks
 
 This repository contains the code used by Ruan de Medeiros Bahia to pursue his research conducted in the Final Paper of the Computer Engineering course in Univasf (Federal University of Vale do São Francisco).
+
+## Objectives
+
+* X
+
+## Corpus
+
+* Y
+
+## Solutions
+
+* Z
 
 ## Requirements
 
@@ -41,13 +53,13 @@ from the repository.
 
 ##### Set up the repository
 
-1.  Update the `apt` package index:
+1. Update the `apt` package index:
 
     ```bash
     $ sudo apt-get update
     ```
 
-2.  Install packages to allow `apt` to use a repository over HTTPS:
+2. Install packages to allow `apt` to use a repository over HTTPS:
 
     ```bash
     $ sudo apt-get install \
@@ -58,7 +70,7 @@ from the repository.
         software-properties-common
     ```
 
-3.  Add Docker's official GPG key:
+3. Add Docker's official GPG key:
 
     ```bash
     $ curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo apt-key add -
@@ -77,7 +89,7 @@ from the repository.
     sub   rsa4096 2017-02-22 [S]
     ```
 
-4.  Use the following command to set up the **stable** repository. To add the
+4. Use the following command to set up the **stable** repository. To add the
     **nightly** or **test** repository, add the word `nightly` or `test` (or both)
     after the word `stable` in the commands below. [Learn about **nightly** and **test** channels](https://docs.docker.com/install/index.md).
 
@@ -151,13 +163,13 @@ from the repository.
 
 ##### Install Docker Engine - Community
 
-1.  Update the `apt` package index.
+1. Update the `apt` package index.
 
     ```bash
     $ sudo apt-get update
     ```
 
-2.  Install the _latest version_ of Docker Engine - Community and containerd, or go to the next step to install a specific version:
+2. Install the _latest version_ of Docker Engine - Community and containerd, or go to the next step to install a specific version:
 
     ```bash
     $ sudo apt-get install docker-ce docker-ce-cli containerd.io
@@ -170,7 +182,7 @@ from the repository.
     > `apt-get update` command always installs the highest possible version,
     > which may not be appropriate for your stability needs.
 
-3.  To install a _specific version_ of Docker Engine - Community, list the available versions in the repo, then select and install:
+3. To install a _specific version_ of Docker Engine - Community, list the available versions in the repo, then select and install:
 
     a. List the versions available in your repo:
 
@@ -191,7 +203,7 @@ from the repository.
     $ sudo apt-get install docker-ce=<VERSION_STRING> docker-ce-cli=<VERSION_STRING> containerd.io
     ```
 
-4.  Verify that Docker Engine - Community is installed correctly by running the `hello-world`
+4. Verify that Docker Engine - Community is installed correctly by running the `hello-world`
     image.
 
     ```bash
@@ -206,3 +218,9 @@ are added to it. You need to use `sudo` to run Docker commands.
 Continue to [Linux postinstall](https://docs.docker.com/install/linux/linux-postinstall.md) to allow
 non-privileged users to run Docker commands and for other optional configuration
 steps.
+
+## Settings
+
+Elasticsearch is set to work in port 9200.
+
+ArangoDB is set to work in port 8529.
