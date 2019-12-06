@@ -246,12 +246,13 @@ class IndexToolManager:
 
         # Connect to "_system" database as root user.
         # This returns an API wrapper for "_system" database.
-        sys_db = self.arangoClient.db('_system', username=None, password=None)
+        self.arango_sys_db = self.arangoClient.db(
+            '_system', username=None, password=None)
 
         index_name = self.indexName
         # Create a new database named "test" if it does not exist.
-        if not sys_db.has_database(index_name):
-            sys_db.create_database(index_name)
+        if not self.arango_sys_db .has_database(index_name):
+            self.arango_sys_db .create_database(index_name)
 
         # Connect to "test" database as root user.
         # This returns an API wrapper for "test" database.
@@ -288,6 +289,21 @@ class IndexToolManager:
                     }
                 }
             )
+
+    def arango_delete(self, databases):
+        '''
+        Deletes the databases from ArangoDB.
+
+        Parameters
+        ----------
+        databases : list
+            String list of the database names.
+        '''
+
+        for db in databases:
+            # Delete database named 'db' if it does exist.
+            if self.arango_sys_db.has_database(str(db)):
+                self.arango_sys_db.delete_database(str(db))
 
     def insertArango(self, itemKey, itemBody):
         '''
@@ -409,6 +425,21 @@ class IndexToolManager:
         }
         if not self.elasticClient.indices.exists(index=self.indexName):
             self.elasticClient.indices.create(index=self.indexName, body=body)
+
+    def elastic_delete(self, indices):
+        '''
+        Deletes complete indices from Elasticsearch.
+
+        Parameters
+        ----------
+        indices : list
+            String list of the indices names.
+        '''
+
+        for index in indices:
+            # Delete indice named 'index' if it does exist.
+            if self.elasticClient.indices.exists(index=str(index)):
+                self.elasticClient.indices.delete(index=str(index))
 
     def insertElastic(self, itemKey, itemBody):
         '''
@@ -562,6 +593,7 @@ class IndexToolManager:
             res_list.append(
                 [score, cur_id, cl])
         return pd.DataFrame(res_list, columns=['score', 'id', 'class'])
+
 
 # bulkBody = testTool.bulkInsertGeneratorElastic([{'id':'23232', 'text': 'hueheuheu'}, {'id':'12345678', 'text': 'hmmmmmm'}])
 
