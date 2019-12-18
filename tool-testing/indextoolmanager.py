@@ -12,6 +12,12 @@ import xml.etree.ElementTree as ET
 
 import pandas as pd
 
+default_db_names = {
+    'authorprof': 'authorprof',
+    'botgender': 'botgender',
+    'hyperpartisan': 'hyperpartisan'
+}
+
 
 class IndexToolManager:
     '''
@@ -51,6 +57,32 @@ class IndexToolManager:
 
         self.initializeArango()
         self.initializeElastic()
+
+    def clean_current(self):
+        self.delete_all([str(self.indexName)])
+
+    def clean_default(self):
+        default_list = []
+
+        for item in default_db_names:
+            default_list.append(str(item))
+            default_list.append(str(item)+'_bulk')
+
+        self.delete_all(default_list)
+        self.elastic_delete(default_list)
+
+    def delete_all(self, index_list):
+        '''
+        Deletes the databases/indexes from all tools.
+
+        Parameters
+        ----------
+        index_list : list
+            String list of the database/indexes names.
+        '''
+
+        self.arango_delete(index_list)
+        self.elastic_delete(index_list)
 
     def get_text_from_child(self, tag):
         '''
@@ -541,7 +573,7 @@ class IndexToolManager:
     def indexZettair(self):
         trecfile = str(self.indexName) + '.txt'
         cmd = f'zet -i -f {self.indexName} -t TREC --big-and-fast {trecfile}'
-        res = subprocess.run(cmd, shell=False, universal_newlines=True,
+        res = subprocess.run(cmd, shell=True, universal_newlines=True,
                              check=True, capture_output=True)
         # p = subprocess.Popen(['zet', '--index',  '--filename',
         #                   self.indexName, '-t', 'TREC',
@@ -594,6 +626,20 @@ class IndexToolManager:
                 [score, cur_id, cl])
         return pd.DataFrame(res_list, columns=['score', 'id', 'class'])
 
+    def zettair_delete(self, index_name):
+        '''
+        Deletes the databases from ArangoDB.
+
+        Parameters
+        ----------
+        index_name : str
+            Name used for the the Zettair index files to be deleted.
+        '''
+
+        # for db in databases:
+        #     # Delete database named 'db' if it does exist.
+        #     if self.arango_sys_db.has_database(str(db)):
+        #         self.arango_sys_db.delete_database(str(db))
 
 # bulkBody = testTool.bulkInsertGeneratorElastic([{'id':'23232', 'text': 'hueheuheu'}, {'id':'12345678', 'text': 'hmmmmmm'}])
 
