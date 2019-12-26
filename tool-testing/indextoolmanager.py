@@ -7,15 +7,19 @@ import subprocess
 # from datetime import datetime
 from arango import ArangoClient
 from elasticsearch import Elasticsearch
+from elasticsearch import helpers as ElasticsearchHelpers
 
 import xml.etree.ElementTree as ET
 
 import pandas as pd
+import json
+from shlex import quote
 
 default_db_names = {
     'authorprof': 'authorprof',
     'botgender': 'botgender',
-    'hyperpartisan': 'hyperpartisan'
+    'hyperpartisan': 'hyperpartisan',
+    'hyperpartisan_split_42': 'hyperpartisan_split_42'
 }
 
 
@@ -40,6 +44,9 @@ class IndexToolManager:
     bm25_k3 : float
         BM25 k3 parameter to adjust the term-frequency weight in the query (used for long queries)
 
+    top_k : int
+        Number of results to be retrieved when querying the database
+
     Methods
     -------
     initializeArango()
@@ -48,15 +55,36 @@ class IndexToolManager:
     '''
 
     def __init__(self, indexName='default_index',
-                 bm25_b=0.75, bm25_k1=1.2, bm25_k3=0.0):
+                 bm25_b=0.75, bm25_k1=1.2, bm25_k3=0.0, top_k=100):
         self.indexName = indexName
         self.bm25_b = float(bm25_b)
         self.bm25_k1 = float(bm25_k1)
         self.bm25_k3 = float(bm25_k3)
-        self.numberResults = 1000
+        self.numberResults = int(top_k)
 
         self.initializeArango()
         self.initializeElastic()
+
+        self.resultsIndexName = 'tcc_results'
+        body = {
+            "settings": {
+                "number_of_shards": 1,
+            }
+        }
+        if not self.elasticClient.indices.exists(index=self.resultsIndexName):
+            self.elasticClient.indices.create(
+                index=self.resultsIndexName, body=body)
+
+    def get_parameters(self):
+        parameters = {
+            'indexName': str(self.indexName),
+            'bm25_b': str(self.bm25_b),
+            'bm25_k1': str(self.bm25_k1),
+            'bm25_k3': str(self.bm25_k3),
+            'top_k': str(self.numberResults),
+        }
+
+        return parameters
 
     def clean_current(self):
         self.delete_all([str(self.indexName)])
@@ -69,7 +97,6 @@ class IndexToolManager:
             default_list.append(str(item)+'_bulk')
 
         self.delete_all(default_list)
-        self.elastic_delete(default_list)
 
     def delete_all(self, index_list):
         '''
@@ -83,6 +110,23 @@ class IndexToolManager:
 
         self.arango_delete(index_list)
         self.elastic_delete(index_list)
+
+    def log_result(self, itemKey, itemBody):
+        '''
+        Inserts a document in the Elasticsearch database.
+
+        Parameters
+        ----------
+        itemKey : str or number
+            Document identifier
+
+        itemBody : dict
+            Document body/data.
+        '''
+
+        self.elasticClient.index(
+            index=self.resultsIndexName, doc_type=self.elasticDocumentType,
+            id=itemKey, body=itemBody)
 
     def get_text_from_child(self, tag):
         '''
@@ -102,6 +146,36 @@ class IndexToolManager:
             count = count + 1
             text = str(text + self.get_text_from_child(child))
         return text
+
+    def get_documents(self, db='authorprof',
+                      documents_xml_folder='db_authorprof/en/',
+                      truth_txt='db_authorprof/truth.txt'):
+        '''
+        Generates a list with all documents from db formatted files.
+
+        Parameters
+        ----------
+        db : str
+            Database name.
+
+        documents_xml_folder : str
+            Folder that contains the XML files from the authors' documents (twits),
+            must follow the DB_AUTHORPROF task XML format.
+
+        truth_txt : str
+            Truth TXT file with authors' classifications of gender { female | male },
+            must follow the DB_AUTHORPROF task TXT format.
+        '''
+        if (db == 'authorprof'):
+            return self.get_documents_DB_AUTHORPROF(documents_xml_folder, truth_txt)
+        if (db == 'botgender'):
+            return self.get_documents_DB_BOTGENDER(documents_xml_folder, truth_txt)
+        if (db == 'hyperpartisan'):
+            return self.get_documents_DB_HYPERPARTISAN(documents_xml_folder, truth_txt)
+        if (db == 'hyperpartisan_split_42'):
+            return self.get_documents_DB_HYPERPARTISAN_split(documents_xml_folder, truth_txt)
+
+        return []
 
     def get_documents_DB_AUTHORPROF(self,
                                     documents_xml_folder='db_authorprof/en/',
@@ -134,12 +208,14 @@ class IndexToolManager:
             author_xml = documents_xml_folder + author_id + '.xml'
 
             # Open the author XML file
-            tree_author = ET.parse(str(author_xml))
+            tree_author = ET.parse(str(author_xml),
+                                   parser=ET.XMLParser(encoding="utf-8"))
             root_author = tree_author.getroot()
 
             number = 1
-            for child in root_author.iter():
+            for child in root_author[0]:
                 document = {'id': str(author_id + '-' + str(number)),
+                            'author_id': str(author_id),
                             'gender': str(gender), 'class': str(gender),
                             'text': child.text
                             }
@@ -179,12 +255,14 @@ class IndexToolManager:
             author_xml = documents_xml_folder + author_id + '.xml'
 
             # Open the author XML file
-            tree_author = ET.parse(str(author_xml))
+            tree_author = ET.parse(str(author_xml),
+                                   parser=ET.XMLParser(encoding="utf-8"))
             root_author = tree_author.getroot()
 
             number = 1
-            for child in root_author.iter():
+            for child in root_author[0]:
                 document = {'id': str(author_id + '-' + str(number)),
+                            'author_id': str(author_id),
                             'kind': str(kind), 'gender': str(gender),
                             'text': child.text, 'class': str(kind),
                             }
@@ -212,7 +290,8 @@ class IndexToolManager:
 
         documents = []
         # Openning the XML files
-        tree_articles = ET.parse(str(articles_xml))
+        tree_articles = ET.parse(str(articles_xml),
+                                 parser=ET.XMLParser(encoding="utf-8"))
         root_articles = tree_articles.getroot()
         tree_ground_truth = ET.parse(str(ground_truth_xml))
         root_ground_truth = tree_ground_truth.getroot()
@@ -223,6 +302,42 @@ class IndexToolManager:
                         'class': str(g_child.get('hyperpartisan')),
                         }
             documents.append(document)
+        return documents
+
+    def get_documents_DB_HYPERPARTISAN_split(self,
+                                       articles_xml='db_hyperpartisan/articles.xml',
+                                       ground_truth_xml='db_hyperpartisan/ground_truth.xml'):
+        '''
+        Generates a list with all documents from DB_HYPERPARTISAN formatted files.
+
+        Parameters
+        ----------
+        articles_xml : str
+            Articles XML file name, the file must have articles surrounded by <article> tags,
+            must follow the DB_HYPERPARTISAN task XML format.
+
+        ground_truth_xml : str
+            Articles ground truth XML file with articles surrounded by <article> tags,
+            must follow the DB_HYPERPARTISAN task XML format.
+        '''
+
+        df = pd.read_csv('db_hyperpartisan/train_set.csv', dtype=str)
+
+        documents = []
+        # Openning the XML files
+        tree_articles = ET.parse(str(articles_xml),
+                                 parser=ET.XMLParser(encoding="utf-8"))
+        root_articles = tree_articles.getroot()
+        tree_ground_truth = ET.parse(str(ground_truth_xml))
+        root_ground_truth = tree_ground_truth.getroot()
+
+        for a_child, g_child in zip(root_articles, root_ground_truth):
+            document = {**a_child.attrib, **g_child.attrib,
+                        'text': str(self.get_text_from_child(a_child)),
+                        'class': str(g_child.get('hyperpartisan')),
+                        }
+            if (df['0'].str.contains(document['id']).any()):
+                documents.append(document)
         return documents
 
     def calc_IR(self, result_df, positive_class='true'):
@@ -413,19 +528,49 @@ class IndexToolManager:
         query : str
             Text to be queried to the view using BM25 analyzer.
         '''
+        escaped_query = str(query).replace("'", "\\\'")
         aqlquery = (f"FOR d IN {str(self.arangoViewName)} SEARCH "
-                    + f"ANALYZER(d.text IN TOKENS('{str(query)}'"
+                    + f"ANALYZER(d.text IN TOKENS('{escaped_query}'"
                     + f", 'text_en'), 'text_en') "
                     + f"SORT BM25(d, {self.bm25_k1}, {self.bm25_b}) "
-                    + f"DESC LET sco = BM25(d, {self.bm25_k1}, "
+                    + f"DESC LIMIT {int(self.numberResults)}"
+                    + f"LET sco = BM25(d, {self.bm25_k1}, "
                     + f"{self.bm25_b}) RETURN {{ doc: d, score: sco }}")
-        cursor = self.arangoDb.aql.execute(aqlquery, count=True)
+
+        cursor = self.arangoDb.aql.execute(query=aqlquery,
+                                           count=True,
+                                           batch_size=self.numberResults)
         item_list = []
         for item in cursor.batch():
             # print(item)
             item_list.append([item['score'], item['doc']['_id'].split('/')[-1],
                               item['doc']['class']])
         return pd.DataFrame(item_list, columns=['score', 'id', 'class'])
+
+    def arango_get_document(self, key):
+        '''
+        Get a document from ArangoDB database, returns the document.
+
+        Parameters
+        ----------
+        key : str
+            Document key.
+        '''
+        result = self.arangoCollection.get(str(key))
+        return result
+
+    def arango_get_IR_variables(self, query, positive_class='true'):
+        '''
+         Query ArangoDB view and returns a dict with the IR variables.
+
+        Parameters
+        ----------
+        query : str
+            Text to be queried to the view using BM25 analyzer.
+        '''
+        result_df = self.queryArango(query)
+
+        return self.calc_IR(result_df=result_df, positive_class=positive_class)
 
     def initializeElastic(self):
         '''
@@ -487,7 +632,8 @@ class IndexToolManager:
         '''
 
         self.elasticClient.index(
-            index=self.indexName, doc_type=self.elasticDocumentType, id=itemKey, body=itemBody)
+            index=self.indexName, doc_type=self.elasticDocumentType,
+            id=itemKey, body=itemBody)
 
     def bulkInsertGeneratorElastic(self, bulkItems):
         '''
@@ -516,6 +662,24 @@ class IndexToolManager:
 
         return bulkBody
 
+    def bulkHelperInsertGeneratorElastic(self, bulkItems):
+        '''
+        Generates a bulk body of insert Elasticsearch operations.
+
+        Parameters
+        ----------
+        bulkItems : list
+            Bulk items to be processed, must contain an 'id' field.
+        '''
+
+        # item['_id'] = item.pop('id')
+        for item in bulkItems:
+            item['_index'] = self.indexName
+            item['_id'] = item.pop('id')
+            item['_type'] = self.elasticDocumentType
+
+        return bulkItems
+
     def bulkElastic(self, bulkBody):
         '''
         Bulk Elasticsearch operations.
@@ -530,6 +694,27 @@ class IndexToolManager:
         '''
 
         self.elasticClient.bulk(index=self.indexName, body=bulkBody)
+
+    def bulkHelperElastic(self, bulkHelperActions):
+        '''
+        Bulk Helper Elasticsearch operations.
+
+        Parameters
+        ----------
+        bulkBody : list or str with operations separated by newlines ('\n')
+            Bulk operations to be executed, already in the format and order to be executed.
+            All operations must have an '_id' in their metadata field.
+            e.g. of index operation over 'index_name' index:
+                [{ 'index': {'_index': 'index_name', '_id' : 'document_id'}, {'field1' : 'value1'}]
+        '''
+
+        # print(len(bulkHelperActions))
+        # print(bulkHelperActions[0])
+        r = ElasticsearchHelpers.bulk(
+            client=self.elasticClient, actions=bulkHelperActions,
+            index=self.indexName,  # thread_count=6,
+            chunk_size=500, max_chunk_bytes=1000*1024*1024)
+        # print(r)
 
     def refreshElastic(self):
         '''
@@ -551,13 +736,52 @@ class IndexToolManager:
             Text to be queried to the index using BM25 similarity
             implemented by Elasticsearch.
         '''
-        result = self.elasticClient.search(index=self.indexName, body={
-            "query": {"match": {"text": str(query)}}})
+        # escaped_query = str(query).replace('"', '\\\"')
+        # escaped_query = json.JSONEncoder.encode(query)
+        escaped_query = str(query).replace("'", " ")
+        # escaped_query = str(query).replace("\\", "\'")
+        # escaped_query = query
+        print('text\n\n\n\n\nHERE')
+        print(escaped_query)
+        result = self.elasticClient.search(index=self.indexName,
+                                           body={
+                                               "query": {"match": {
+                                                   "text": escaped_query}
+                                               }
+                                           },
+                                           size=self.numberResults)
         hit_list = []
         for hit in result['hits']['hits']:
             hit_list.append(
                 [hit['_score'], hit['_id'], hit['_source']['class']])
         return pd.DataFrame(hit_list, columns=['score', 'id', 'class'])
+
+    def elastic_get_document(self, id):
+        '''
+        Get a document from a Elasticsearch index, returns the document.
+
+        Parameters
+        ----------
+        id : str
+            Document id.
+        '''
+        result = self.elasticClient.get_source(index=self.indexName,
+                                               id=str(id))
+        return result
+
+    def elastic_get_IR_variables(self, query, positive_class='true'):
+        '''
+        Query Elasticsearch index, returns a dict with the IR variables.
+
+        Parameters
+        ----------
+        query : str
+            Text to be queried to the index using BM25 similarity
+            implemented by Elasticsearch.
+        '''
+        result_df = self.queryElastic(query)
+
+        return self.calc_IR(result_df=result_df, positive_class=positive_class)
 
     def initializeZettair(self):
         print('')
@@ -618,13 +842,31 @@ class IndexToolManager:
                 break
         # Iterates over the lines, extracts the id and score
         res_list = []
-        for line in lines:
-            cur_id = line.split()[1]
-            score = line.split()[3].split(',')[0]
-            cl = 'true'
-            res_list.append(
-                [score, cur_id, cl])
+        len_lines = len(lines)
+        if not (len_lines <= 2 and lines[0] == ' '):
+            for line in lines:
+                line_split = line.split()
+                if (len(line_split) >= 4):
+                    cur_id = line_split[1]
+                    score = line_split[3].split(',')[0]
+                    cl = self.elastic_get_document(str(cur_id))['class']
+                    # cl = 'true'
+                    res_list.append(
+                        [float(score), cur_id, cl])
         return pd.DataFrame(res_list, columns=['score', 'id', 'class'])
+
+    def zettair_get_IR_variables(self, query, positive_class='true'):
+        '''
+        Query Zettair index, returns a dict with the IR variables.
+
+        Parameters
+        ----------
+        query : str
+            Text to be queried to the index using BM25 metric.
+        '''
+        result_df = self.queryZettair(query)
+
+        return self.calc_IR(result_df=result_df, positive_class=positive_class)
 
     def zettair_delete(self, index_name):
         '''
