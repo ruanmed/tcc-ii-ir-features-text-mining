@@ -817,23 +817,37 @@ class IndexToolManager:
         query : str
             Text to be queried to the index using BM25 metric.
         '''
-        p = subprocess.Popen(['zet',  '-f', self.indexName,
-                              '-n', str(int(self.numberResults)),
-                              '--okapi', f'--b={self.bm25_b}',
-                              f'--k1={self.bm25_k1}',
-                              f'--k3={self.bm25_k3}',
-                              '--summary=none', '--big-and-fast'],
+        escaped_query = str(query).replace('"', '\\\"')
+        escaped_query = '"' + escaped_query + '"'
+        # p = subprocess.Popen(['zet',  '-f', self.indexName,
+        #                       '-n', str(int(self.numberResults)),
+        #                       '--okapi', f'--b={self.bm25_b}',
+        #                       f'--k1={self.bm25_k1}',
+        #                       f'--k3={self.bm25_k3}',
+        #                       '--summary=none', '--big-and-fast',
+        #                       escaped_query],
+        #                      stdin=subprocess.PIPE,
+        #                      stdout=subprocess.PIPE,
+        #                      stderr=subprocess.PIPE)
+        # out, err = p.communicate(escaped_query.encode('utf-8'))
+        # print(escaped_query)
+        # p.terminate()
+
+        cmd = f'zet -f {self.indexName} -n {str(int(self.numberResults))} --okapi ' + \
+              f'--b={self.bm25_b} --k1={self.bm25_k1} --k3={self.bm25_k3} ' + \
+              f'--summary=none --big-and-fast {escaped_query}'
+        res = subprocess.run(cmd, shell=True, universal_newlines=True,
+                             check=True,
                              stdin=subprocess.PIPE,
                              stdout=subprocess.PIPE,
                              stderr=subprocess.PIPE)
-        out, err = p.communicate(query.encode('utf-8'))
-        p.terminate()
         # print(out.decode('utf-8'))
-        # print(err)
+        out = res.stdout
 
         lines = []
         # Process Zettair query result
-        linesx = out.decode("utf-8").split('>')[1].splitlines()
+        # linesx = out.split('>')[1].splitlines()
+        linesx = out.splitlines()
         # linesx = (line for line in linesx if line)    # Non-blank lines
         for line in linesx:
             if line:
