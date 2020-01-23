@@ -10,6 +10,7 @@ services:
         - bootstrap.memory_lock=true
         - "ES_JAVA_OPTS=-Xms1g -Xmx1g"
         - discovery.type=single-node
+        - indices.query.bool.max_clause_count=20480
   arangodb:
     image: arangodb:3.5.1
     container_name: tool-arango
