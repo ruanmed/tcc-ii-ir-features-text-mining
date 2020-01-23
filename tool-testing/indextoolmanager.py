@@ -1,5 +1,5 @@
 # import os
-# import time
+import time
 # import timeit
 # import pprint
 import math
@@ -61,6 +61,9 @@ class IndexToolManager:
         self.bm25_k1 = float(bm25_k1)
         self.bm25_k3 = float(bm25_k3)
         self.numberResults = int(top_k)
+        self.root_path = "/home/ruan/Documentos/git/tcc-ii-ir-features-text-mining/tool-testing/"
+
+        self.zettair_query_process = None
 
         self.initializeArango()
         self.initializeElastic()
@@ -74,6 +77,24 @@ class IndexToolManager:
         if not self.elasticClient.indices.exists(index=self.resultsIndexName):
             self.elasticClient.indices.create(
                 index=self.resultsIndexName, body=body)
+
+        # Create a new database named "test" if it does not exist.
+        if not self.arango_sys_db .has_database(self.resultsIndexName):
+            self.arango_sys_db .create_database(self.resultsIndexName)
+
+        # Connect to "test" database as root user.
+        # This returns an API wrapper for "test" database.
+        self.arangoResultsDb = self.arangoClient.db(
+            self.resultsIndexName, username=None, password=None)
+
+        db = self.arangoResultsDb
+        # Create a new collection named "students" if it does not exist.
+        # This returns an API wrapper for "students" collection.
+        if db.has_collection(self.resultsIndexName):
+            self.arangoResultsCollection = db.collection(self.resultsIndexName)
+        else:
+            self.arangoResultsCollection = db.create_collection(
+                self.resultsIndexName)
 
     def get_parameters(self):
         parameters = {
@@ -128,6 +149,10 @@ class IndexToolManager:
             index=self.resultsIndexName, doc_type=self.elasticDocumentType,
             id=itemKey, body=itemBody)
 
+        document = {'_key': itemKey}
+        document.update(itemBody)
+        self.arangoResultsCollection.insert(document)
+
     def get_text_from_child(self, tag):
         '''
         Recursive function to get full text from XML elements with tags.
@@ -149,7 +174,8 @@ class IndexToolManager:
 
     def get_documents(self, db='authorprof',
                       documents_xml_folder='db_authorprof/en/',
-                      truth_txt='db_authorprof/truth.txt'):
+                      truth_txt='db_authorprof/truth.txt',
+                      append_class_to_id=False):
         '''
         Generates a list with all documents from db formatted files.
 
@@ -167,19 +193,20 @@ class IndexToolManager:
             must follow the DB_AUTHORPROF task TXT format.
         '''
         if (db == 'authorprof'):
-            return self.get_documents_DB_AUTHORPROF(documents_xml_folder, truth_txt)
+            return self.get_documents_DB_AUTHORPROF(documents_xml_folder, truth_txt, append_class_to_id)
         if (db == 'botgender'):
-            return self.get_documents_DB_BOTGENDER(documents_xml_folder, truth_txt)
+            return self.get_documents_DB_BOTGENDER(documents_xml_folder, truth_txt, append_class_to_id)
         if (db == 'hyperpartisan'):
-            return self.get_documents_DB_HYPERPARTISAN(documents_xml_folder, truth_txt)
+            return self.get_documents_DB_HYPERPARTISAN(documents_xml_folder, truth_txt, append_class_to_id)
         if (db == 'hyperpartisan_split_42'):
-            return self.get_documents_DB_HYPERPARTISAN_split(documents_xml_folder, truth_txt)
+            return self.get_documents_DB_HYPERPARTISAN_split(documents_xml_folder, truth_txt, append_class_to_id)
 
         return []
 
     def get_documents_DB_AUTHORPROF(self,
                                     documents_xml_folder='db_authorprof/en/',
-                                    truth_txt='db_authorprof/truth.txt'):
+                                    truth_txt='db_authorprof/truth.txt',
+                                    append_class_to_id=False):
         '''
         Generates a list with all documents from DB_AUTHORPROF formatted files.
 
@@ -219,6 +246,8 @@ class IndexToolManager:
                             'gender': str(gender), 'class': str(gender),
                             'text': child.text
                             }
+                if append_class_to_id:
+                    document['id'] += str(':' + str(document['class']))
                 number = number + 1
                 documents.append(document)
 
@@ -226,7 +255,8 @@ class IndexToolManager:
 
     def get_documents_DB_BOTGENDER(self,
                                    documents_xml_folder='db_botgender/en/',
-                                   truth_txt='db_authorprof/truth.txt'):
+                                   truth_txt='db_authorprof/truth.txt',
+                                   append_class_to_id=False):
         '''
         Generates a list with all documents from DB_BOTGENDER formatted files.
 
@@ -266,6 +296,8 @@ class IndexToolManager:
                             'kind': str(kind), 'gender': str(gender),
                             'text': child.text, 'class': str(kind),
                             }
+                if append_class_to_id:
+                    document['id'] += str(':' + str(document['class']))
                 number = number + 1
                 documents.append(document)
 
@@ -273,7 +305,8 @@ class IndexToolManager:
 
     def get_documents_DB_HYPERPARTISAN(self,
                                        articles_xml='db_hyperpartisan/articles.xml',
-                                       ground_truth_xml='db_hyperpartisan/ground_truth.xml'):
+                                       ground_truth_xml='db_hyperpartisan/ground_truth.xml',
+                                       append_class_to_id=False):
         '''
         Generates a list with all documents from DB_HYPERPARTISAN formatted files.
 
@@ -301,12 +334,15 @@ class IndexToolManager:
                         'text': str(self.get_text_from_child(a_child)),
                         'class': str(g_child.get('hyperpartisan')),
                         }
+            if append_class_to_id:
+                document['id'] += str(':' + str(document['class']))
             documents.append(document)
         return documents
 
     def get_documents_DB_HYPERPARTISAN_split(self,
-                                       articles_xml='db_hyperpartisan/articles.xml',
-                                       ground_truth_xml='db_hyperpartisan/ground_truth.xml'):
+                                             articles_xml='db_hyperpartisan/articles.xml',
+                                             ground_truth_xml='db_hyperpartisan/ground_truth.xml',
+                                             append_class_to_id=False):
         '''
         Generates a list with all documents from DB_HYPERPARTISAN formatted files.
 
@@ -337,6 +373,8 @@ class IndexToolManager:
                         'class': str(g_child.get('hyperpartisan')),
                         }
             if (df['0'].str.contains(document['id']).any()):
+                if append_class_to_id:
+                    document['id'] += str(':' + str(document['class']))
                 documents.append(document)
         return documents
 
@@ -426,16 +464,21 @@ class IndexToolManager:
                 properties={
                     'cleanupIntervalStep': 0,
                     'consolidationIntervalMsec': 0,
+                    'writebufferSizeMax': 0,
                     'links': {
                         index_name: {
                             "analyzers": [
                                 "text_en"
                             ],
-                            "includeAllFields": True
+                            "includeAllFields": True,
+                            "storeValues": 'id'
                         }
                     }
                 }
             )
+
+        # Configure AQL query cache properties
+        db.aql.cache.configure(mode='off', max_results=100000)
 
     def arango_delete(self, databases):
         '''
@@ -519,7 +562,7 @@ class IndexToolManager:
 
         self.arangoCollection.import_bulk(documentList)
 
-    def queryArango(self, query):
+    def arango_query(self, query, ignore_first_result=False):
         '''
         Query ArangoDB view and returns a Pandas DataFrame with the results.
 
@@ -528,23 +571,36 @@ class IndexToolManager:
         query : str
             Text to be queried to the view using BM25 analyzer.
         '''
-        escaped_query = str(query).replace("'", "\\\'")
+        initial = time.time()
+        escaped_query = str(query).replace('\\', '')
+        escaped_query = str(escaped_query).replace("'", "\\\'")
+
+        nResults = int(self.numberResults)
+        if ignore_first_result:
+            nResults += 1
         aqlquery = (f"FOR d IN {str(self.arangoViewName)} SEARCH "
                     + f"ANALYZER(d.text IN TOKENS('{escaped_query}'"
                     + f", 'text_en'), 'text_en') "
                     + f"SORT BM25(d, {self.bm25_k1}, {self.bm25_b}) "
-                    + f"DESC LIMIT {int(self.numberResults)}"
+                    + f"DESC LIMIT {nResults} "
                     + f"LET sco = BM25(d, {self.bm25_k1}, "
                     + f"{self.bm25_b}) RETURN {{ doc: d, score: sco }}")
-
+        # print(aqlquery)
         cursor = self.arangoDb.aql.execute(query=aqlquery,
                                            count=True,
-                                           batch_size=self.numberResults)
+                                           batch_size=self.numberResults,
+                                           optimizer_rules=['+all'],
+                                           cache=True)
         item_list = []
+        # print(1, time.time()-initial)
+        initial = time.time()
         for item in cursor.batch():
             # print(item)
             item_list.append([item['score'], item['doc']['_id'].split('/')[-1],
                               item['doc']['class']])
+        # print(2, time.time()-initial)
+        if ignore_first_result and (len(item_list) > 0):
+            item_list.pop(0)
         return pd.DataFrame(item_list, columns=['score', 'id', 'class'])
 
     def arango_get_document(self, key):
@@ -559,7 +615,7 @@ class IndexToolManager:
         result = self.arangoCollection.get(str(key))
         return result
 
-    def arango_get_IR_variables(self, query, positive_class='true'):
+    def arango_get_IR_variables(self, query, positive_class='true', ignore_first_result=False):
         '''
          Query ArangoDB view and returns a dict with the IR variables.
 
@@ -568,7 +624,7 @@ class IndexToolManager:
         query : str
             Text to be queried to the view using BM25 analyzer.
         '''
-        result_df = self.queryArango(query)
+        result_df = self.arango_query(query, ignore_first_result=ignore_first_result)
 
         return self.calc_IR(result_df=result_df, positive_class=positive_class)
 
@@ -726,7 +782,7 @@ class IndexToolManager:
         '''
         self.elasticClient.indices.refresh(index=self.indexName)
 
-    def queryElastic(self, query):
+    def elastic_query(self, query, ignore_first_result=False):
         '''
         Query Elasticsearch index, returns a Pandas DataFrame with the results.
 
@@ -736,24 +792,30 @@ class IndexToolManager:
             Text to be queried to the index using BM25 similarity
             implemented by Elasticsearch.
         '''
+        # escaped_query = str(query).replace('\\', '')
         # escaped_query = str(query).replace('"', '\\\"')
         # escaped_query = json.JSONEncoder.encode(query)
         escaped_query = str(query).replace("'", " ")
         # escaped_query = str(query).replace("\\", "\'")
         # escaped_query = query
-        print('text\n\n\n\n\nHERE')
-        print(escaped_query)
+        # print('text\n\n\n\n\nHERE')
+        # print(escaped_query)        
+        nResults = int(self.numberResults)
+        if ignore_first_result:
+            nResults += 1
         result = self.elasticClient.search(index=self.indexName,
                                            body={
                                                "query": {"match": {
                                                    "text": escaped_query}
                                                }
                                            },
-                                           size=self.numberResults)
+                                           size=nResults)
         hit_list = []
         for hit in result['hits']['hits']:
             hit_list.append(
                 [hit['_score'], hit['_id'], hit['_source']['class']])
+        if ignore_first_result and (len(hit_list) > 0):
+            hit_list.pop(0)
         return pd.DataFrame(hit_list, columns=['score', 'id', 'class'])
 
     def elastic_get_document(self, id):
@@ -769,7 +831,7 @@ class IndexToolManager:
                                                id=str(id))
         return result
 
-    def elastic_get_IR_variables(self, query, positive_class='true'):
+    def elastic_get_IR_variables(self, query, positive_class='true', ignore_first_result=False):
         '''
         Query Elasticsearch index, returns a dict with the IR variables.
 
@@ -779,7 +841,7 @@ class IndexToolManager:
             Text to be queried to the index using BM25 similarity
             implemented by Elasticsearch.
         '''
-        result_df = self.queryElastic(query)
+        result_df = self.elastic_query(query, ignore_first_result=ignore_first_result)
 
         return self.calc_IR(result_df=result_df, positive_class=positive_class)
 
@@ -794,7 +856,7 @@ class IndexToolManager:
             f.write(f'<DOC>\n<DOCNO>{d["id"]}</DOCNO>\n{d["text"]}\n</DOC>\n')
         f.close()
 
-    def indexZettair(self):
+    def zettair_index(self):
         trecfile = str(self.indexName) + '.txt'
         cmd = f'zet -i -f {self.indexName} -t TREC --big-and-fast {trecfile}'
         res = subprocess.run(cmd, shell=True, universal_newlines=True,
@@ -808,7 +870,7 @@ class IndexToolManager:
         # p.terminate()
         print(res)
 
-    def queryZettair(self, query):
+    def zettair_query(self, query, interactive=True, ignore_first_result=False):
         '''
         Query Zettair index, returns a Pandas DataFrame with the results.
 
@@ -817,59 +879,107 @@ class IndexToolManager:
         query : str
             Text to be queried to the index using BM25 metric.
         '''
-        escaped_query = str(query).replace('"', '\\\"')
-        escaped_query = '"' + escaped_query + '"'
-        # p = subprocess.Popen(['zet',  '-f', self.indexName,
-        #                       '-n', str(int(self.numberResults)),
-        #                       '--okapi', f'--b={self.bm25_b}',
-        #                       f'--k1={self.bm25_k1}',
-        #                       f'--k3={self.bm25_k3}',
-        #                       '--summary=none', '--big-and-fast',
-        #                       escaped_query],
-        #                      stdin=subprocess.PIPE,
-        #                      stdout=subprocess.PIPE,
-        #                      stderr=subprocess.PIPE)
-        # out, err = p.communicate(escaped_query.encode('utf-8'))
+        escaped_query = str(query).replace('\\', '')
+        escaped_query = str(escaped_query).replace('"', ' ')
+        escaped_query = str(escaped_query).replace('`', '\\`')
+        nResults = int(self.numberResults)
+        if ignore_first_result:
+            nResults += 1
+        if (self.zettair_query_process is None):
+            self.zettair_query_process = subprocess.Popen(['zet',  '-f',
+                                                           self.root_path + self.indexName,
+                                                           '-n', str(nResults),
+                                                           '--okapi', f'--b={self.bm25_b}',
+                                                           f'--k1={self.bm25_k1}',
+                                                           f'--k3={self.bm25_k3}',
+                                                           '--summary=none',
+                                                           '--big-and-fast'],
+                                                          stdin=subprocess.PIPE,
+                                                          stdout=subprocess.PIPE,
+                                                          stderr=subprocess.PIPE)
         # print(escaped_query)
         # p.terminate()
-
-        cmd = f'zet -f {self.indexName} -n {str(int(self.numberResults))} --okapi ' + \
-              f'--b={self.bm25_b} --k1={self.bm25_k1} --k3={self.bm25_k3} ' + \
-              f'--summary=none --big-and-fast {escaped_query}'
-        res = subprocess.run(cmd, shell=True, universal_newlines=True,
-                             check=True,
-                             stdin=subprocess.PIPE,
-                             stdout=subprocess.PIPE,
-                             stderr=subprocess.PIPE)
-        # print(out.decode('utf-8'))
-        out = res.stdout
-
+        out = ''
         lines = []
-        # Process Zettair query result
-        # linesx = out.split('>')[1].splitlines()
-        linesx = out.splitlines()
-        # linesx = (line for line in linesx if line)    # Non-blank lines
-        for line in linesx:
-            if line:
-                lines.append(line)
-            else:  # breaks after first blank line, next line is the summary
-                break
+        if interactive:
+            escaped_query = str(escaped_query).replace("'", " ")
+            escaped_query = "'" + escaped_query + "'"
+            # out, err = self.zettair_query_process.communicate(
+            #     escaped_query.encode('utf-8'))
+            # out = out.decode('utf-8')
+            # print(out.decode('utf-8'))
+            escaped_query = str(escaped_query).replace('\n', ' ')
+            # print(escaped_query)
+            self.zettair_query_process.stdin.write(
+                escaped_query.encode('utf-8') + b'\n')
+            # self.zettair_query_process.stdin.write(escaped_query+'\n')
+            self.zettair_query_process.stdin.flush()
+            # print(escaped_query)
+            fl = self.zettair_query_process.stdout.readline()
+            while len(fl.decode('utf-8').split()) > 7:
+                # print(fl)
+                fl = self.zettair_query_process.stdout.readline()
+            # print(fl.decode('utf-8').split('>'))
+            lines.append(fl.decode('utf-8').split('>')[1])
+            while fl != b'\n' and fl != b'> \n':
+                fl = self.zettair_query_process.stdout.readline()
+                self.zettair_query_process.stdout.flush()
+                if not self.zettair_query_process.poll() is None:
+                    print('POOL\n', self.zettair_query_process.poll())
+                    err = self.zettair_query_process.stderr.readline()
+                    if err != "":
+                        print('ERROR\n', err)
+                lines.append(fl.decode('utf-8'))
+            # for line in iter(self.zettair_query_process.stdout.readline, b'\n'):
+            #     lines.append(line.decode('utf-8'))
+            #     self.zettair_query_process.stdout.flush()
+            #     # print(line)
+            # print('END')
+        else:
+            escaped_query = '"' + escaped_query + '"'
+            cmd = f'zet -f {self.root_path}{self.indexName} -n {str(nResults)} --okapi ' + \
+                f'--b={self.bm25_b} --k1={self.bm25_k1} --k3={self.bm25_k3} ' + \
+                f'--summary=none --big-and-fast {escaped_query}'
+            res = subprocess.run(cmd, shell=True, universal_newlines=True,
+                                 check=True,
+                                 stdin=subprocess.PIPE,
+                                 stdout=subprocess.PIPE,
+                                 stderr=subprocess.PIPE)
+            out = res.stdout
+
+            # Process Zettair query result
+            # linesx = out.split('>')[1].splitlines()
+            linesx = out.splitlines()
+            # linesx = (line for line in linesx if line)    # Non-blank lines
+            for line in linesx:
+                if line:
+                    lines.append(line)
+                else:  # breaks after first blank line, next line is the summary
+                    break
         # Iterates over the lines, extracts the id and score
         res_list = []
         len_lines = len(lines)
-        if not (len_lines <= 2 and lines[0] == ' '):
+        # if not (len_lines <= 2 and lines[0] == ' '):
+        if (len_lines > 2 and (not lines[0] == ' ')):
             for line in lines:
                 line_split = line.split()
                 if (len(line_split) >= 4):
-                    cur_id = line_split[1]
+                    stuff = line_split[1].split(':')
+                    cur_id = stuff[0]
+                    # print(f'stuff: {stuff}')
+                    if (len(stuff) > 1):
+                        cl = stuff[1]
+                    else:
+                        cl = self.elastic_get_document(str(cur_id))['class']
                     score = line_split[3].split(',')[0]
-                    cl = self.elastic_get_document(str(cur_id))['class']
                     # cl = 'true'
                     res_list.append(
                         [float(score), cur_id, cl])
+        if ignore_first_result and (len(res_list) > 0):
+            res_list.pop(0)
         return pd.DataFrame(res_list, columns=['score', 'id', 'class'])
 
-    def zettair_get_IR_variables(self, query, positive_class='true'):
+    def zettair_get_IR_variables(self, query, positive_class='true', interactive=True, ignore_first_result=False):
         '''
         Query Zettair index, returns a dict with the IR variables.
 
@@ -878,7 +988,7 @@ class IndexToolManager:
         query : str
             Text to be queried to the index using BM25 metric.
         '''
-        result_df = self.queryZettair(query)
+        result_df = self.zettair_query(query, interactive, ignore_first_result=ignore_first_result)
 
         return self.calc_IR(result_df=result_df, positive_class=positive_class)
 
