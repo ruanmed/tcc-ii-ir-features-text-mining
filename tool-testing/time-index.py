@@ -101,8 +101,13 @@ def index(idx_type='normal', db='authorprof', tool='arango', db_name='authorprof
     testTool = IndexToolManager(indexName=db_name)
 
     start = time.time()
+    append_class_to_id = False
+    if (tool == 'zettair'):
+        append_class_to_id = True
     bulk = testTool.get_documents(db,
-                                  db_files[db]['xml_folder'], db_files[db]['truth_txt'])
+                                  db_files[db]['xml_folder'],
+                                  db_files[db]['truth_txt'],
+                                  append_class_to_id)
     end = time.time()
     mylogger.info(f'get_documents {end - start}')
     mylogger.info(f'TOTAL documents {len(bulk)}')
@@ -155,9 +160,9 @@ def index(idx_type='normal', db='authorprof', tool='arango', db_name='authorprof
         mylogger.info(f'saveToTrecFileZettair {end - start}')
 
         start = time.time()
-        testTool.indexZettair()
+        testTool.zettair_index()
         end = time.time()
-        mylogger.info(f'indexZettair {end - start}')
+        mylogger.info(f'zettair_index {end - start}')
 
     final = time.time()
     result_id = datetime.datetime.now().strftime("%Y%m%d-%H%M%S.%f")
@@ -306,9 +311,9 @@ def index_bulk_DB_AUTHORPROF_TOOL_ZETTAIR():
     mylogger.info(f'saveToTrecFileZettair {end - start}')
 
     start = time.time()
-    testTool.indexZettair()
+    testTool.zettair_index()
     end = time.time()
-    mylogger.info(f'indexZettair {end - start}')
+    mylogger.info(f'zettair_index {end - start}')
 
     final = time.time()
 
@@ -460,9 +465,9 @@ def index_bulk_DB_BOTGENDER_TOOL_ZETTAIR():
     mylogger.info(f'saveToTrecFileZettair {end - start}')
 
     start = time.time()
-    testTool.indexZettair()
+    testTool.zettair_index()
     end = time.time()
-    mylogger.info(f'indexZettair {end - start}')
+    mylogger.info(f'zettair_index {end - start}')
 
     final = time.time()
 
@@ -606,9 +611,9 @@ def index_bulk_DB_HYPERPARTISAN_TOOL_ZETTAIR():
     mylogger.info(f'saveToTrecFileZettair {end - start}')
 
     start = time.time()
-    testTool.indexZettair()
+    testTool.zettair_index()
     end = time.time()
-    mylogger.info(f'indexZettair {end - start}')
+    mylogger.info(f'zettair_index {end - start}')
 
     final = time.time()
 
@@ -688,7 +693,10 @@ def measure_TIME_INDEX2(normal=False, clean=False):
         final = time.time()
         mylogger.info(f'CLEANING FINISHED: {final - initial}')
 
-    tools = ['arango', 'elastic', 'zettair']
+    # tools = ['arango', 'elastic', 'zettair']
+    tools = ['zettair']
+    dbs = ['authorprof', 'botgender', 'hyperpartisan', 'hyperpartisan_split_42']
+    # dbs = ['authorprof']
 
     for db in dbs:
         mylogger.info('')
@@ -705,21 +713,22 @@ def measure_TIME_INDEX2(normal=False, clean=False):
 
 
 # measure_TIME_INDEX2(True, True)
+# measure_TIME_INDEX2(False, False)
 
 # pp=pprint.PrettyPrinter(indent=4)
 
 # testTool=IndexToolManager(indexName=str(hyperpartisan_db_name+'_bulk'))
 
 # query='Is the chaos of 2017 a catharsis -- a necessary and long overdue purge of dangerous and neglected pathologies? Will the bedlam within the United States descend into more nihilism, or offer a remedy to the status quo that had divided and nearly bankrupted the country? Is the problem too much democracy, as the volatile and fickle mob runs roughshod over establishment experts and experienced bureaucrats? Or is the crisis too little democracy, as populists strive to dethrone a scandal-plagued, anti-democratic, incompetent and overrated entrenched elite? Neither traditional political party has any answers. Democrats are being overwhelmed by the identity politics and socialism of progressives. Republicans are torn asunder between upstart populist nationalists and the calcified establishment status quo. Yet for all the social instability and media hysteria, life in the United States quietly seems to be getting better. The economy is growing. Unemployment and inflation remain low. The stock market and middle-class incomes are up. Business and consumer confidence are high. Corporate profits are up. Energy production has expanded. The border with Mexico is being enforced. Is the instability less a symptom that America is falling apart and more a sign that the loud conventional wisdom of the past -- about the benefits of a globalized economy, the insignificance of national borders and the importance of identity politics -- is drawing to a close, along with the careers of those who profited from it? In the past, any crisis that did not destroy the United States ended up making it stronger. But for now, the fight grows over which is more toxic -- the chronic statist malady that was eating away the country, or the new populist medicine deemed necessary to cure it. (C) 2017 TRIBUNE CONTENT AGENCY, LLC. Victor Davis Hanson is a classicist and historian at the Hoover Institution, Stanford University. His latest book is  The Savior Generals'
-# print(testTool.queryArango(query))
-# result_df = testTool.queryArango(query)
+# print(testTool.arango_query(query))
+# result_df = testTool.arango_query(query)
 # text = testTool.elastic_get_document('0000000')['text']
-# print(testTool.queryElastic(query))
+# print(testTool.elastic_query(query))
 # pp.pprint(testTool.elastic_get_IR_variables(text, 'true'))
 # text = testTool.arango_get_document('0000001')['text']
 # pp.pprint(testTool.arango_get_IR_variables(text, 'true'))
-# print(testTool.queryElastic(query))
-# print(testTool.queryZettair(query))
+# print(testTool.elastic_query(query))
+# print(testTool.zettair_query(query))
 
 # X=[]
 # with open('train.elmo.mini.tsv', 'rb') as inf:
