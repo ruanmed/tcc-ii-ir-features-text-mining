@@ -84,7 +84,8 @@ mylogger.addHandler(handler1)
 add_ir_variables = True
 ignore_first_result = True
 exp_id = str(datetime.datetime.now())
-tool = 'arango'
+tool = 'zettair'
+ir_top_k = 100
 hyperpartisan_db_name = 'hyperpartisan_split_42_bulk'
 
 
@@ -96,7 +97,7 @@ exp_dict = {
     'add_ir_variables': add_ir_variables,
     'solution_number': '1',
     'solution_name': '1_bertha',
-    'ir_top_k': 100,
+    'ir_top_k': ir_top_k,
     'ignore_first_result': ignore_first_result,
     'random_seed': random_seed,
     'train_input': '',
@@ -344,7 +345,6 @@ if (add_ir_variables):
 
 exp_dict['train_input'] = args.inputTSV
 exp_dict['train_epochs'] = str(epochs)
-exp_dict['train_final_score'] = str(np.mean(cvscores))
 
 for train, test in kfold.split(x_data, y_data):
     i += 1
@@ -364,7 +364,7 @@ for train, test in kfold.split(x_data, y_data):
     K.clear_session()
 mylogger.info("Final score: %.4f%% (+/- %.4f%%)" %
               (np.mean(cvscores), np.std(cvscores)))
-
+exp_dict['train_final_score'] = np.mean(cvscores)
 # exp_dict['train_cv_history_val_acc'] = cv_history_val_acc
 
 with open('saved_models/exp.pkl', 'wb+') as f:

@@ -621,7 +621,7 @@ def index_bulk_DB_HYPERPARTISAN_TOOL_ZETTAIR():
         f'index_bulk_DB_HYPERPARTISAN_TOOL_ZETTAIR: {final - initial}')
 
 
-def measure_TIME_INDEX():
+def measure_TIME_INDEX_old():
 
     mylogger.info('START OF TIME_INDEX MEASUREMENTS')
     mylogger.info(str(datetime.datetime.now()))
@@ -679,7 +679,7 @@ def measure_TIME_INDEX():
     mylogger.info('END OF TIME_INDEX MEASUREMENTS')
 
 
-def measure_TIME_INDEX2(normal=False, clean=False):
+def measure_TIME_INDEX(normal=False, clean=False):
     mylogger.info('START OF TIME_INDEX MEASUREMENTS')
     exp_id = str(datetime.datetime.now())
     mylogger.info(exp_id)
@@ -693,9 +693,10 @@ def measure_TIME_INDEX2(normal=False, clean=False):
         final = time.time()
         mylogger.info(f'CLEANING FINISHED: {final - initial}')
 
-    # tools = ['arango', 'elastic', 'zettair']
-    tools = ['zettair']
+    tools = ['arango', 'elastic', 'zettair']
+    # tools = ['zettair']
     dbs = ['authorprof', 'botgender', 'hyperpartisan', 'hyperpartisan_split_42']
+    dbs = ['authorprof', 'hyperpartisan', 'hyperpartisan_split_42']
     # dbs = ['authorprof']
 
     for db in dbs:

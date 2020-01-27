@@ -44,11 +44,11 @@ from sklearn.model_selection import StratifiedKFold
 from sklearn.model_selection import cross_val_score
 from sklearn.model_selection import train_test_split
 from sklearn.pipeline import Pipeline, FeatureUnion
-from sklearn.svm import LinearSVC
+from sklearn.svm import SVC, LinearSVC
 
 from scipy.sparse import coo_matrix, hstack, csr_matrix
 from sklearn.preprocessing import LabelBinarizer
-from sklearn.preprocessing import StandardScaler
+from sklearn.preprocessing import StandardScaler, Normalizer, MinMaxScaler, MaxAbsScaler
 
 import process_data_files
 import utils
@@ -62,6 +62,7 @@ ROOT_PATH = "/home/ruan/Documentos/git/tcc-ii-ir-features-text-mining/tool-testi
 TRAIN_DATA_ROOT_FOLDER = ROOT_PATH + 'db_authorprof/pan18-author-profiling-training-2018-02-27/'
 TEST_DATA_ROOT_FOLDER = ROOT_PATH + 'db_authorprof/pan18-author-profiling-test-2018-03-20/'
 
+import pandas as pd
 import inspect
 import logging
 import datetime
@@ -107,15 +108,16 @@ handler1.setFormatter(formatter)
 mylogger.addHandler(handler1)
 
 add_ir_variables = True
-perform_dimentionality_reduction = True
+perform_dimentionality_reduction = False
 ir_variables_before_dim_reduction = True
 ignore_first_result = True
 use_scaler = True
-use_only_ir_variables = False
+use_scaler_only_ir = True
+use_only_ir_variables = True
 use_dumped_features = True
 exp_id = str(datetime.datetime.now())
-tool = 'elastic'
-ir_top_k = 20
+tool = 'zettair'
+ir_top_k = 100
 authorprof_db_name = 'authorprof_bulk'
 
 exp_dict = {
@@ -135,6 +137,8 @@ exp_dict = {
     'perform_dimentionality_reduction': perform_dimentionality_reduction,
     'ir_variables_before_dim_reduction': ir_variables_before_dim_reduction,
     'use_scaler': use_scaler,
+    'use_scaler_only_ir': use_scaler_only_ir,
+    'scaler': '',
     'use_only_ir_variables': use_only_ir_variables,
     'linear_svc_C': '',
     'linear_svc_max_iter': '',
@@ -391,64 +395,102 @@ def extract_features(docs_train, docs_test, preset_key, train_ir_vars, test_ir_v
                           }
     PRESET = PRESETS_DICTIONARY[preset_key]
     feature_names_ngrams = []
+    nddd = pd.DataFrame(train_ir_vars)
+    print(nddd.describe())
+    logger.info(nddd.describe().to_string())
+    nddd = pd.DataFrame(test_ir_vars)
+    print(nddd.describe())
+    X_train_ngrams_tfidf = []
+    X_test_ngrams_tfidf = []
     if (not use_only_ir_variables):
-        # Build a vectorizer that splits strings into sequences of i to j words
-        word_vectorizer = TfidfVectorizer(preprocessor=preprocess_tweet,
-                                        analyzer='word', ngram_range=PRESET['word_ngram_range'],
-                                        min_df=2, use_idf=True, sublinear_tf=True)
-        # Build a vectorizer that splits strings into sequences of 3 to 5 characters
-        char_vectorizer = TfidfVectorizer(preprocessor=preprocess_tweet,
-                                        analyzer='char', ngram_range=(3, 5),
-                                        min_df=2, use_idf=True, sublinear_tf=True)
-        # %% Trying out count vectorizer
-        # vectorizer = CountVectorizer(ngram_range=(1,1), analyzer='word', min_df=1)
+        dump_train_file_name = f'{ROOT_PATH}corpus_1_solution_1/saved_datasets/dataset_X_train_ngrams_tfidf.pkl'
+        dump_test_file_name = f'{ROOT_PATH}corpus_1_solution_1/saved_datasets/dataset_X_test_ngrams_tfidf.pkl'
+        if (os.path.exists(dump_train_file_name) and os.path.exists(dump_test_file_name)):
+            with open(dump_train_file_name, 'rb') as f:
+                X_train_ngrams_tfidf = pickle.load(f)
+            with open(dump_test_file_name, 'rb') as f:
+                X_test_ngrams_tfidf = pickle.load(f)
+            print('Datasets already calculated')
+        else:
+            # Build a vectorizer that splits strings into sequences of i to j words
+            word_vectorizer = TfidfVectorizer(preprocessor=preprocess_tweet,
+                                            analyzer='word', ngram_range=PRESET['word_ngram_range'],
+                                            min_df=2, use_idf=True, sublinear_tf=True)
+            # Build a vectorizer that splits strings into sequences of 3 to 5 characters
+            char_vectorizer = TfidfVectorizer(preprocessor=preprocess_tweet,
+                                            analyzer='char', ngram_range=(3, 5),
+                                            min_df=2, use_idf=True, sublinear_tf=True)
+            # %% Trying out count vectorizer
+            # vectorizer = CountVectorizer(ngram_range=(1,1), analyzer='word', min_df=1)
 
-        # Build a transformer (vectorizer) pipeline using the previous analyzers
-        # *FeatureUnion* concatenates results of multiple transformer objects
-        ngrams_vectorizer = Pipeline([('feats', FeatureUnion([('word_ngram', word_vectorizer),
-                                                            ('char_ngram',
-                                                            char_vectorizer),
-                                                            ])),
-                                    # ('clff', LinearSVC(random_state=42))
-                                    ])
+            # Build a transformer (vectorizer) pipeline using the previous analyzers
+            # *FeatureUnion* concatenates results of multiple transformer objects
+            ngrams_vectorizer = Pipeline([('feats', FeatureUnion([('word_ngram', word_vectorizer),
+                                                                ('char_ngram',
+                                                                char_vectorizer),
+                                                                ])),
+                                        # ('clff', LinearSVC(random_state=42))
+                                        ])
 
-        # Fit (learn vocabulary and IDF) and transform (transform documents to the TF-IDF matrix) the training set
-        X_train_ngrams_tfidf = ngrams_vectorizer.fit_transform(docs_train)
-        '''
-        ↳ Check the following attributes of each of the transformers (analyzers)—*word_vectorizer* and *char_vectorizer*:
-        vocabulary_ : dict. A mapping of terms to feature indices.
-        stop_words_ : set. Terms that were ignored
-        '''
-        logger.info(
-            "@ %.2f seconds: Finished fit_transforming the training dataset", time.process_time())
-        logger.info("Training set word & character ngrams .shape = %s",
-                    X_train_ngrams_tfidf.shape)
+            # Fit (learn vocabulary and IDF) and transform (transform documents to the TF-IDF matrix) the training set
+            X_train_ngrams_tfidf = ngrams_vectorizer.fit_transform(docs_train)
+            '''
+            ↳ Check the following attributes of each of the transformers (analyzers)—*word_vectorizer* and *char_vectorizer*:
+            vocabulary_ : dict. A mapping of terms to feature indices.
+            stop_words_ : set. Terms that were ignored
+            '''
+            logger.info(
+                "@ %.2f seconds: Finished fit_transforming the training dataset", time.process_time())
+            logger.info("Training set word & character ngrams .shape = %s",
+                        X_train_ngrams_tfidf.shape)
 
-        feature_names_ngrams = [
-            word_vectorizer.vocabulary_, char_vectorizer.vocabulary_]
+            feature_names_ngrams = [
+                word_vectorizer.vocabulary_, char_vectorizer.vocabulary_]
 
-        # # TEMP: For debugging purposes
-        # ProcessDataFiles.write_iterable_to_csv(list(feature_names_ngrams[0].items()), "word_vectorizer.vocabulary_",
-        #                                     logger.handlers[1].baseFilename)
-        # ProcessDataFiles.write_iterable_to_csv(list(feature_names_ngrams[1].items()), "char_vectorizer.vocabulary_",
-        #                                     logger.handlers[1].baseFilename)
+            # # TEMP: For debugging purposes
+            # ProcessDataFiles.write_iterable_to_csv(list(feature_names_ngrams[0].items()), "word_vectorizer.vocabulary_",
+            #                                     logger.handlers[1].baseFilename)
+            # ProcessDataFiles.write_iterable_to_csv(list(feature_names_ngrams[1].items()), "char_vectorizer.vocabulary_",
+            #                                     logger.handlers[1].baseFilename)
 
-        '''
-        Extract the features of the test set (transform test documents to the TF-IDF matrix)
-        Only transform is called on the transformer (vectorizer), because it has already been fit to the training set.
-        '''
-        X_test_ngrams_tfidf = ngrams_vectorizer.transform(docs_test)
-        logger.info(
-            "@ %.2f seconds: Finished transforming the test dataset", time.process_time())
-        logger.info("Test set word & character ngrams .shape = %s",
-                    X_test_ngrams_tfidf.shape)
+            '''
+            Extract the features of the test set (transform test documents to the TF-IDF matrix)
+            Only transform is called on the transformer (vectorizer), because it has already been fit to the training set.
+            '''
+            X_test_ngrams_tfidf = ngrams_vectorizer.transform(docs_test)
+            logger.info(
+                "@ %.2f seconds: Finished transforming the test dataset", time.process_time())
+            logger.info("Test set word & character ngrams .shape = %s",
+                        X_test_ngrams_tfidf.shape)
+            with open(dump_train_file_name, 'wb+') as f:
+                pickle.dump(X_train_ngrams_tfidf, f, pickle.HIGHEST_PROTOCOL)
+            with open(dump_test_file_name, 'wb+') as f:
+                pickle.dump(X_test_ngrams_tfidf, f, pickle.HIGHEST_PROTOCOL)
+        
     # print(X_test_ngrams_tfidf)
-    # print(type(X_test_ngrams_tfidf))
+    # print(type(X_test_ngrams_tfidf)) 
+    if use_scaler:
+        # scaler = StandardScaler(with_mean=False)
+        # scaler = Normalizer()
+        # scaler = MaxAbsScaler()
+        # scaler = MinMaxScaler(feature_range=(-1,1))
+        # scaler = MinMaxScaler(feature_range=(-1,1))
+        # Range from first attribute
+        # exp_dict['scaler_min'] =  0.053976
+        # exp_dict['scaler_max'] = 0.520381 
+        # exp_dict['scaler_min'] =  -0.15
+        # exp_dict['scaler_max'] = 0.15 
+        exp_dict['scaler_min'] =  0.0
+        exp_dict['scaler_max'] = 0.15 
+        scaler = MinMaxScaler(feature_range=(exp_dict['scaler_min'], exp_dict['scaler_max']))
+        exp_dict['scaler'] = 'MinMaxScaler'  
+    if use_scaler and use_scaler_only_ir:
+        train_ir_vars = scaler.fit_transform(train_ir_vars)
+        test_ir_vars = scaler.transform(test_ir_vars)
     if (add_ir_variables and ir_variables_before_dim_reduction):
         # X_train_ngrams_tfidf = np.c_[X_train_ngrams_tfidf, train_ir_vars]
         # hstack((X_train_ngrams_tfidf,np.array([7,7,7])[:,None]))
-        if (use_scaler):
-            scaler = StandardScaler(with_mean=False)
+
         if use_only_ir_variables:
             X_train_ngrams_tfidf = csr_matrix(train_ir_vars)
         else:
@@ -457,8 +499,6 @@ def extract_features(docs_train, docs_test, preset_key, train_ir_vars, test_ir_v
             "@ %.2f seconds: Finished adding IR variables on the training dataset", time.process_time())
         logger.info("Training set .shape = %s",
                     X_train_ngrams_tfidf.shape)
-        if (use_scaler):
-            X_train_ngrams_tfidf = scaler.fit_transform(X_train_ngrams_tfidf)
         # X_test_ngrams_tfidf = np.c_[X_test_ngrams_tfidf, test_ir_vars]
         if use_only_ir_variables:
             X_test_ngrams_tfidf = csr_matrix(test_ir_vars)
@@ -468,10 +508,10 @@ def extract_features(docs_train, docs_test, preset_key, train_ir_vars, test_ir_v
             "@ %.2f seconds: Finished adding IR variables on the test dataset", time.process_time())
         logger.info("Test set .shape = %s",
                     X_test_ngrams_tfidf.shape)
-        if (use_scaler):
-            X_test_ngrams_tfidf = scaler.transform(X_test_ngrams_tfidf)
-
-    print(type(X_test_ngrams_tfidf))
+    if use_scaler and not use_scaler_only_ir:
+        X_train_ngrams_tfidf = scaler.fit_transform(X_train_ngrams_tfidf)
+        X_test_ngrams_tfidf = scaler.transform(X_test_ngrams_tfidf)
+    # print(type(X_test_ngrams_tfidf))
     # • Dimensionality reduction using truncated SVD (aka LSA)
     if PRESET['perform_dimentionality_reduction']:
         # Build a truncated SVD (LSA) transformer object
@@ -494,7 +534,12 @@ def extract_features(docs_train, docs_test, preset_key, train_ir_vars, test_ir_v
     else:
         X_train = X_train_ngrams_tfidf
         X_test = X_test_ngrams_tfidf
-
+    # nddd = pd.DataFrame(X_train)
+    # print(nddd.describe())
+    # logger.info(nddd.describe().to_string())
+    # nddd = pd.DataFrame(X_test)
+    # print(nddd.describe())
+    # logger.info(nddd.describe().to_string())
     if (add_ir_variables and (not ir_variables_before_dim_reduction)):
         X_train = np.c_[X_train, train_ir_vars]
         logger.info(
@@ -1115,6 +1160,7 @@ def main_test():
     mylogger.info(f'add_ir_variables: {add_ir_variables}')   
     mylogger.info(f'ir_top_k: {ir_top_k}') 
     mylogger.info(f'use_only_ir_variables: {use_only_ir_variables}')
+    mylogger.info(f'use_scaler: {use_scaler}')
 
     # %% Only in English
     for presetKey in ("PAN18_English",
@@ -1138,7 +1184,7 @@ def main_test():
             docs_train, docs_test, presetKey, train_ir_vars, test_ir_vars)    
         import warnings
         # warnings.filterwarnings("ignore", category = ignoreConvergenceWarning)
-        warnings.filterwarnings('ignore', 'Solver terminated early.*')
+        # warnings.filterwarnings('ignore', 'Solver terminated early.*')
         # C = [0.00001, 0.001, 0.002, 0.005, 0.01, 0.05, 0.1,
         #      0.2, 0.3, 0.5, 0.6, 0.7, 0.9,
         #      1, 1.1, 1.2, 1.3, 1.5, 2.0, 2.5, 3.0, 4.0, 5.0,
@@ -1148,13 +1194,23 @@ def main_test():
         C = np.around(np.linspace(0.000001,0.0002,20,endpoint=True),7).tolist()
         C += [0.0005, 0.001, 0.002, 0.005, 0.01, 0.02, 0.03, 0.05, 0.07]
         C += np.around(np.linspace(0.1,4,20,endpoint=True),3).tolist()
-        C += [10.0, 10000.0, 99999999.0]
+        C += np.around(np.linspace(4,200,100,endpoint=True),3).tolist()
+        # C += [10.0, 100.0, 1000.0, 10000.0, 99999999.0]
+        C += np.around(np.linspace(1000,100000,100,endpoint=True),0).tolist()
+        C = [0.00001, 0.0001, 0.001, 0.002, 0.005, 0.01, 0.02, 0.03, 0.05, 0.07]
+        C += np.around(np.linspace(0.1,10,100,endpoint=True),3).tolist()
+        C = np.linspace(0.000001,0.0001,100,endpoint=True).tolist()
+        C += [0.001, 0.002, 0.005, 0.01, 0.02, 0.03, 0.05, 0.07]
+        C += np.around(np.linspace(0.1,10,100,endpoint=True),3).tolist()
+        # C = [1.0]
         exp_dict['classifier'] = 'LinearSVC'
+        # exp_dict['classifier'] = 'SVC'
         for c in C:
             exp_dict['linear_svc_C'] = str(c)
-            exp_dict['linear_svc_max_iter'] = str(20000)
+            exp_dict['linear_svc_max_iter'] = str(5000)
             mylogger.info(f'Training clf with c = {c}, max_iter = {exp_dict["linear_svc_max_iter"]}\n')
             clf = LinearSVC(random_state=random_seed, C=c, max_iter=int(exp_dict['linear_svc_max_iter']))
+            # clf = SVC(random_state=random_seed, C=c, max_iter=int(exp_dict['linear_svc_max_iter']), gamma='auto')
             cross_validate_model(clf, X_train, y_train)
             train_and_test_model(clf, X_train, y_train, X_test, y_test)
             # mylogger.info(f'Training clf with c = {c}, max_iter = 150\n')
@@ -1244,21 +1300,21 @@ and not if it is imported as a module.
 • A module's __name__ is set to "__main__" when it is running in
 the main scope (the scope in which top-level code executes).  
 '''
-# if __name__ == "__main__":
-#     logger = utils.configure_root_logger()
-#     utils.set_working_directory()
-#     # main_development()
-#     main_test()
-#     # main_tira_evaluation()
-
 if __name__ == "__main__":
     logger = utils.configure_root_logger()
     utils.set_working_directory()
-    docs_train, docs_test, y_train, y_test, train_ir_vars, test_ir_vars = load_datasets_test(
-            "PAN18_English")
-    dataset = [docs_train, docs_test, y_train, y_test, train_ir_vars, test_ir_vars]
-    topk = exp_dict['ir_top_k']
-    ignfr = exp_dict['ignore_first_result']
-    dump_file_name = f'{ROOT_PATH}corpus_1_solution_1/saved_datasets/dataset_2_danesh_tool_{tool}_topk_{topk}_ignfr_{ignfr}.pkl'
-    with open(dump_file_name, 'wb+') as f:
-        pickle.dump(dataset, f, pickle.HIGHEST_PROTOCOL)
+    # main_development()
+    main_test()
+    # main_tira_evaluation()
+
+# if __name__ == "__main__":
+#     logger = utils.configure_root_logger()
+#     utils.set_working_directory()
+#     docs_train, docs_test, y_train, y_test, train_ir_vars, test_ir_vars = load_datasets_test(
+#             "PAN18_English")
+#     dataset = [docs_train, docs_test, y_train, y_test, train_ir_vars, test_ir_vars]
+#     topk = exp_dict['ir_top_k']
+#     ignfr = exp_dict['ignore_first_result']
+#     dump_file_name = f'{ROOT_PATH}corpus_1_solution_1/saved_datasets/dataset_2_danesh_tool_{tool}_topk_{topk}_ignfr_{ignfr}.pkl'
+#     with open(dump_file_name, 'wb+') as f:
+#         pickle.dump(dataset, f, pickle.HIGHEST_PROTOCOL)

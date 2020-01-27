@@ -69,7 +69,5 @@ tool-testing/corpus_2_solution_2/hyperpartisan_split_42_bulk.param.0
 tool-testing/corpus_2_solution_2/hyperpartisan_split_42_bulk.txt
 tool-testing/corpus_2_solution_2/hyperpartisan_split_42_bulk.v.0
 tool-testing/corpus_2_solution_2/hyperpartisan_split_42_bulk.vocab.0
-tool-testing/corpus_2_solution_2/pretrained_wv/glove.6B.50d.txt
-tool-testing/corpus_2_solution_2/pretrained_wv/glove.6B.100d.txt
-tool-testing/corpus_2_solution_2/pretrained_wv/glove.6B.200d.txt
-tool-testing/corpus_2_solution_2/pretrained_wv/glove.6B.300d.txt
+tool-testing/corpus_2_solution_2/pretrained_wv/
+tool-testing/corpus_2_solution_1/saved_models*

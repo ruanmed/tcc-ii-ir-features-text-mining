@@ -72,7 +72,8 @@ saved_model1 = ''
 saved_model2 = ''
 saved_model3 = ''
 test_input = ''
-
+print(exp_dict)
+# exit()
 testTool = IndexToolManager(
     indexName=str(hyperpartisan_db_name), top_k=exp_dict['ir_top_k'])
 
@@ -231,14 +232,8 @@ def load_data(data_path, max_len=200, add_ir_variables=False):
         'exp_id': exp_id,
         'variable': 'TIME_QUERY',
         ** testTool.get_parameters(),
-        'db': db,
-        'tool': tool,
-        'db_name': db_name,
-        'add_ir_variables': 'true' if add_ir_variables else 'false',
-        'solution_number': exp_dict['solution_number'],
-        'solution_name': exp_dict['solution_name'],
+        ** exp_dict,
         'execution_type': 'testing',
-        'train_input':  exp_dict['train_input'],
         'test_input': test_input,
         'number_queries': str(len(time_query_list)),
         'value': str(time_query),
